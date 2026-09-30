@@ -44,3 +44,23 @@
 .guide b {
   color: #cfd8e8;
 }
+
+.recovered-img {
+  display: block;
+  max-width: 100%;
+  margin-top: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  image-rendering: pixelated;
+  background: #000;
+}
+.doc-preview {
+  max-height: 220px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: #cfd8e8;
+  font-size: 13px;
+  white-space: pre-wrap;
+}

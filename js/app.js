@@ -204,17 +204,38 @@ async function receiveComplete(){
       displayedImageRecoveryPct:verifiedImagePct};
     // Make recovered document available.
     const blob=new Blob([doc.body],{type:doc.mime||'application/octet-stream'});
+
+          // Recovered sender image -> data URL
+      const imgCanvas=binaryToCanvas(image,m.w,m.h,Math.max(1,Math.min(4,Math.floor(512/m.w))));
+      const imgURL=imgCanvas.toDataURL();
+
+      // Optional: preview text documents
+      let textPreview='';
+      if((doc.mime&&doc.mime.startsWith('text/'))||/\.txt$/i.test(doc.name)){
+        textPreview=`<h3 style="margin-top:16px">Document preview</h3>
+          <pre class="doc-preview">${escapeHtml(new TextDecoder().decode(doc.body.slice(0,2000)))}</pre>`;
+      }
+
     $('receiverResult').innerHTML=`<div class="metric-grid">
       <div class="metric"><span>Image recovery</span><b>${verifiedImagePct.toFixed(2)}%</b><small>pixel-level</small></div>
       <div class="metric"><span>Document integrity</span><b class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'100%':'FAILED'}</b><small>CRC-32 verification</small></div>
       <div class="metric"><span>Document</span><b>${fmtBytes(doc.body.length)}</b><small>${escapeHtml(doc.name)}</small></div>
       <div class="metric"><span>Corruption</span><b>${m.corruption}%</b><small>simulated before transfer</small></div>
     </div>
+
+ <div class="panel" style="margin-top:16px">
+      <h3>Recovered image (sender's input)</h3>
+      <img src="${imgURL}" class="recovered-img" alt="Recovered binary image">
+    </div>
+    
     <div class="panel" style="margin-top:16px">
       <h3>Recovered successfully</h3>
       <p class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'The recovered document passed CRC-32 and is byte-for-byte valid.':'The recovered document failed CRC-32; corruption affected the payload.'}</p>
-      <button class="primary" id="downloadRecovered">Download recovered document</button>
+      ${textPreview}
+      <button class="primary" id="downloadRecovered" style="margin-top:14px">Download recovered document</button>
     </div>`;
+
+
     show('receiverWait',false);show('receiverResult');
     $('downloadRecovered').onclick=()=>downloadBlob(blob,doc.name);
     renderDashboard(m,'receiver');
