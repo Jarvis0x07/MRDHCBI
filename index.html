@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="MRDHCBI reversible data hiding demonstration">
+  <title>MRDHCBI • Reversible Data Hiding Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">M</div>
+      <div><b>MRDHCBI</b><span>Reversible Data Hiding Lab</span></div>
+    </div>
+    <div class="status-pill" id="connectionStatus">● Offline</div>
+  </header>
+
+  <main class="container">
+    <section id="landing" class="hero">
+      <div>
+        <p class="eyebrow">MULTI-PARTY • BINARY IMAGE • REVERSIBLE</p>
+        <h1>Hide a document inside a binary image — then recover both exactly.</h1>
+        <p class="lead">Choose a role, enter the same pairing key on both devices, and create a direct browser-to-browser transfer.</p>
+      </div>
+      <div class="role-grid">
+        <button class="role-card" data-role="sender">
+          <span class="role-icon">↑</span>
+          <strong>Sender</strong>
+          <small>Embed the document and transmit the marked shares.</small>
+        </button>
+        <button class="role-card" data-role="receiver">
+          <span class="role-icon">↓</span>
+          <strong>Receiver</strong>
+          <small>Receive, extract, restore, and verify the transaction.</small>
+        </button>
+      </div>
+      <div class="privacy-note">Files are transferred peer-to-peer after pairing. GitHub Pages hosts the interface; it does not store the transferred files.</div>
+    </section>
+
+    <section id="pairing" class="panel hidden">
+      <div class="panel-head">
+        <div><p class="eyebrow">STEP 01</p><h2>Pair devices</h2></div>
+        <button class="ghost" id="backBtn">← Back</button>
+      </div>
+      <div class="pair-grid">
+        <div>
+          <label for="pairKey">Pairing key</label>
+          <input id="pairKey" type="text" maxlength="40" placeholder="e.g. TEAM-2026-01">
+          <button class="primary wide" id="pairBtn">Create pairing</button>
+          <p class="hint">Both participants must enter the same key. The sender opens the room; the receiver joins it.</p>
+        </div>
+        <div class="pair-state">
+          <div class="big-status" id="pairState">Waiting for key</div>
+          <div class="code-box" id="roomDisplay">—</div>
+          <p id="pairMessage">No peer connection yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="senderPanel" class="hidden">
+      <div class="panel-head">
+        <div><p class="eyebrow">SENDER</p><h2>Prepare a transaction</h2></div>
+        <div class="connected-badge">● Paired</div>
+      </div>
+      <div class="input-grid">
+        <div class="drop-card">
+          <label>Binary image</label>
+          <input id="imageInput" type="file" accept="image/png,image/bmp,image/jpeg">
+          <div class="drop-placeholder" id="imageDrop">Drop a binary/grayscale image here<br><span>Pixels ≥ 128 become 1; pixels &lt; 128 become 0.</span></div>
+          <img id="imagePreview" class="preview hidden" alt="Binary image preview">
+        </div>
+        <div class="drop-card">
+          <label>Document to hide</label>
+          <input id="documentInput" type="file">
+          <div class="drop-placeholder" id="docDrop">Choose the document to hide<br><span>PDF, DOCX, TXT, ZIP, etc.</span></div>
+          <div id="docInfo" class="file-info hidden"></div>
+        </div>
+      </div>
+
+      <div class="controls-row">
+        <div class="corruption">
+          <label for="corruption">Transmission corruption</label>
+          <div class="slider-line"><input id="corruption" type="range" min="0" max="20" step="0.5" value="0"><b id="corruptionValue">0%</b></div>
+          <span class="hint">Random bit flips are applied to marked shares before transfer.</span>
+        </div>
+        <button class="primary" id="sendBtn" disabled>Embed & send</button>
+      </div>
+      <div id="senderLog" class="log"></div>
+    </section>
+
+    <section id="receiverPanel" class="hidden">
+      <div class="panel-head">
+        <div><p class="eyebrow">RECEIVER</p><h2>Receive & recover</h2></div>
+        <div class="connected-badge">● Paired</div>
+      </div>
+      <div class="receiver-wait" id="receiverWait">
+        <div class="spinner"></div>
+        <h3>Waiting for sender</h3>
+        <p>The receiver is ready. The sender can now choose the image and document.</p>
+      </div>
+      <div id="receiverResult" class="hidden"></div>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="panel-head">
+        <div><p class="eyebrow">TRANSACTION DASHBOARD</p><h2>Base method vs proposed method</h2></div>
+        <button class="ghost" id="newTxBtn">New transaction</button>
+      </div>
+      <div id="summaryCards" class="metric-grid"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Payload capacity</h3><canvas id="capacityChart"></canvas></div>
+        <div class="chart-card"><h3>Recovery</h3><canvas id="recoveryChart"></canvas></div>
+        <div class="chart-card"><h3>Storage / share</h3><canvas id="storageChart"></canvas></div>
+        <div class="chart-card"><h3>Transaction details</h3><div id="detailsTable"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>MRDHCBI research demonstrator</span>
+    <span>GitHub Pages + WebRTC</span>
+  </footer>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
