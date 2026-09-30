@@ -148,7 +148,7 @@ async function sendTransaction(){
   try{
     const tx=await buildTransaction();
     // Recover document from proposed payload for the sender dashboard.
-    const propPayload=new Uint8Array(tx.proposed.recoveredPayload);
+    const propPayload=new Uint8Array(tx.meta.proposed.recoveredPayload);
     let propDoc;
     try{propDoc=await parsePayload(propPayload,pairingKey)}catch{propDoc=null}
     tx.meta.proposed.documentRecoveryPct=propDoc?byteAccuracy(propDoc.body,await documentFile.arrayBuffer().then(x=>new Uint8Array(x))):0;
