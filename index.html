@@ -3,28 +3,122 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="MRDHCBI reversible data hiding demonstration">
-  <title>IT429 — Number Theory and Cryptography | Course Project</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="Enigma: Multi Party Reversible Data Hiding in Cipher Text Binary Images">
+  <title>Enigma: Multi Party Reversible Data Hiding in Cipher Text Binary Images</title>
+  <link rel="stylesheet" href="styles.css?v=20261001-v4">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">IT</div>
-      <div><b>IT429</b><span>Number Theory & Cryptography</span></div>
+      <div class="brand-mark">EN</div>
+      <div><b>ENIGMA</b><span>Ciphertext image recovery</span></div>
     </div>
     <div class="top-actions"><button class="theme-toggle" id="themeToggle">☼ Light mode</button><div class="status-pill" id="connectionStatus">● Offline</div></div>
   </header>
 
   <main class="container">
     <section id="landing" class="hero">
-      <div>
+      <div class="hero-intro">
+        <div class="hero-copy">
         <p class="course-kicker">IT429 · NUMBER THEORY AND CRYPTOGRAPHY · COURSE PROJECT</p>
-        <h1>Multi-Party Reversible Data Hiding in Ciphertext Binary Images</h1>
+        <h1>Enigma</h1>
+        <h2 class="project-title">Multi Party Reversible Data Hiding in Cipher Text Binary Images</h2>
         <p class="lead">Implementation and experimental evaluation of multi-party reversible data hiding in ciphertext binary images using visual cryptography and Hamming-syndrome based embedding.</p>
         <div class="project-meta"><span>Guided by <a class="faculty-link" href="https://infotech.nitk.ac.in/faculty/jaidhar-c-d" target="_blank" rel="noopener">Jaidhar C D ↗</a></span><span>National Institute of Technology Karnataka</span></div>
+        </div>
+        <figure class="cipher-visual" aria-label="Illustration of image encryption and recovery using visual cryptography shares">
+          <div class="cipher-visual-head"><span><i></i> ENIGMA / VISUAL CRYPTOGRAPHY</span><span>(2,3) SHARES</span></div>
+          <svg class="cipher-machine" viewBox="0 0 520 310" role="img" aria-labelledby="cipherTitle cipherDesc">
+            <title id="cipherTitle">Enigma image encryption and recovery</title>
+            <desc id="cipherDesc">A custom cipher machine illustration connects a binary image to three encrypted visual cryptography shares and a reconstructed image.</desc>
+            <defs>
+              <linearGradient id="machineBody" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#182b46"/>
+                <stop offset="1" stop-color="#080f1e"/>
+              </linearGradient>
+              <linearGradient id="machineTop" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#314866"/>
+                <stop offset="1" stop-color="#192b45"/>
+              </linearGradient>
+              <pattern id="binaryPattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                <rect width="10" height="10" fill="#101c2e"/>
+                <rect x="1" y="1" width="3" height="3" rx=".5" fill="#85b7ff"/>
+                <rect x="6" y="6" width="3" height="3" rx=".5" fill="#d9e8ff" opacity=".8"/>
+              </pattern>
+              <filter id="machineShadow" x="-30%" y="-30%" width="160%" height="180%">
+                <feDropShadow dx="0" dy="13" stdDeviation="12" flood-color="#071222" flood-opacity=".32"/>
+              </filter>
+            </defs>
+            <g class="visual-orbit" fill="none" stroke="#8dbbff" stroke-opacity=".2">
+              <circle cx="260" cy="146" r="127" stroke-dasharray="2 8"/>
+              <circle cx="260" cy="146" r="111" stroke-dasharray="1 7"/>
+            </g>
+            <g class="visual-endpoint">
+              <rect x="29" y="117" width="73" height="63" rx="9" fill="#12233a" stroke="#5379ac"/>
+              <rect x="39" y="127" width="53" height="38" rx="3" fill="url(#binaryPattern)"/>
+              <path d="M47 171h37" stroke="#8dbbff" stroke-width="2" stroke-linecap="round"/>
+              <text x="65" y="197" text-anchor="middle">IMAGE</text>
+            </g>
+            <g class="visual-endpoint">
+              <rect x="418" y="117" width="73" height="63" rx="9" fill="#12233a" stroke="#5379ac"/>
+              <rect x="428" y="127" width="53" height="38" rx="3" fill="url(#binaryPattern)"/>
+              <path d="M436 171h37" stroke="#8dbbff" stroke-width="2" stroke-linecap="round"/>
+              <text x="454" y="197" text-anchor="middle">RECOVERED</text>
+            </g>
+            <g class="signal-path" fill="none" stroke="#76adff" stroke-width="2">
+              <path d="M103 148h37"/>
+              <path d="M380 148h36"/>
+              <path d="M121 143l7 5-7 5M398 143l7 5-7 5"/>
+            </g>
+            <g class="cipher-device" filter="url(#machineShadow)">
+              <path d="M150 126 173 76h174l23 50v95H150z" fill="url(#machineBody)" stroke="#6683a9" stroke-width="2"/>
+              <path d="m173 76 18-30h138l18 30z" fill="url(#machineTop)" stroke="#6683a9" stroke-width="2"/>
+              <path d="M164 126h192v78H164z" fill="#0a1424" stroke="#364f70"/>
+              <path d="M181 134h158v58H181z" fill="#14243a" stroke="#4d6689"/>
+              <g class="rotor rotor-one">
+                <circle cx="218" cy="163" r="21" fill="#203b5e" stroke="#95baff" stroke-width="2"/>
+                <circle cx="218" cy="163" r="14" fill="#0b1728" stroke="#5e82b4"/>
+                <text x="218" y="168" text-anchor="middle">E</text>
+              </g>
+              <g class="rotor rotor-two">
+                <circle cx="260" cy="163" r="21" fill="#203b5e" stroke="#95baff" stroke-width="2"/>
+                <circle cx="260" cy="163" r="14" fill="#0b1728" stroke="#5e82b4"/>
+                <text x="260" y="168" text-anchor="middle">N</text>
+              </g>
+              <g class="rotor rotor-three">
+                <circle cx="302" cy="163" r="21" fill="#203b5e" stroke="#95baff" stroke-width="2"/>
+                <circle cx="302" cy="163" r="14" fill="#0b1728" stroke="#5e82b4"/>
+                <text x="302" y="168" text-anchor="middle">G</text>
+              </g>
+              <g fill="#b9d5ff">
+                <circle cx="193" cy="92" r="3"/><circle cx="208" cy="92" r="3"/><circle cx="223" cy="92" r="3"/>
+                <circle cx="238" cy="92" r="3"/><circle cx="253" cy="92" r="3"/><circle cx="268" cy="92" r="3"/>
+                <circle cx="283" cy="92" r="3"/><circle cx="298" cy="92" r="3"/><circle cx="313" cy="92" r="3"/>
+              </g>
+              <g fill="#b8c8de" font-size="8" text-anchor="middle">
+                <text x="193" y="114">Q</text><text x="208" y="114">W</text><text x="223" y="114">E</text>
+                <text x="238" y="114">R</text><text x="253" y="114">T</text><text x="268" y="114">Y</text>
+                <text x="283" y="114">U</text><text x="298" y="114">I</text><text x="313" y="114">O</text>
+              </g>
+              <path d="M170 215h152l-12 13H182z" fill="#294361" stroke="#6683a9"/>
+              <path d="M201 216v8m17-8v8m17-8v8m17-8v8m17-8v8m17-8v8m17-8v8" stroke="#a6c7f7" stroke-opacity=".65"/>
+              <circle cx="337" cy="214" r="3" fill="#65d5ad"/>
+            </g>
+            <g class="share-stack">
+              <rect x="221" y="254" width="27" height="20" rx="3" fill="#1b3555" stroke="#8dbbff" transform="rotate(-10 221 254)"/>
+              <rect x="245" y="254" width="27" height="20" rx="3" fill="#274b73" stroke="#8dbbff"/>
+              <rect x="269" y="254" width="27" height="20" rx="3" fill="#1b3555" stroke="#8dbbff" transform="rotate(10 269 254)"/>
+              <text x="259" y="291" text-anchor="middle">ENCRYPTED VISUAL SHARES</text>
+            </g>
+          </svg>
+          <div class="cipher-flow" aria-hidden="true">
+            <span><b>01</b> ENCRYPT IMAGE</span><i></i>
+            <span><b>02</b> TRANSMIT SHARES</span><i></i>
+            <span><b>03</b> RECONSTRUCT</span>
+          </div>
+        </figure>
       </div>
       <div class="role-grid">
         <button class="role-card" data-role="sender">
@@ -170,7 +264,7 @@
 
     <footer>
     <div><b>IT429 · Number Theory and Cryptography</b><span>Course Project · NITK Surathkal</span></div>
-    <div><span>Guided by Jaidhar C D</span><span>© 2026 MRDHCBI Project Team</span></div>
+    <div><span>Guided by Jaidhar C D</span><span>© 2026 Enigma Project Team</span></div>
   </footer>
   <script src="js/algorithm.js?v=20261001-v7"></script>
   <script src="js/app-v6.js?v=20261001-v8"></script>
