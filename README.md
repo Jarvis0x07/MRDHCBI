@@ -66,7 +66,7 @@ You need two browser tabs or two devices.
 3. On the sender: choose a binary or grayscale image and the document to hide.
 4. Optionally set the **transmission corruption** slider (0–20%). This flips random bits in the marked shares before transfer.
 5. Press **Embed & send**.
-6. The receiver shows the recovered image, the CRC-32 result, the recovered document (downloadable, with a text preview for `.txt` files), and a dashboard comparing the two methods.
+6. The receiver shows the image reconstructed from the received shares even if corruption prevents the document from being parsed. It also shows the document's CRC-32 result (downloadable, with a text preview for `.txt` files when readable) and a dashboard comparing the two methods.
 7. **Analysis** on the landing page runs the five-method comparison locally. It needs no pairing, upload or connection.
 
 > The document plus its header must fit in the capacity of the chosen image (about 6 KB for 128×128 with our method, about 2 KB with the base method). If the document only fits our method, the base column shows N/A.
@@ -207,7 +207,7 @@ Pairing needs internet access, because the two browsers find each other through 
 - **Document survival under noise:** the document did not survive any corruption of 0.5% or more (see 4.1). Both methods are meant for reversible hiding on a clean channel. They are not noise-robust document carriers.
 - **Payload fill:** the image-recovery advantage of the Hamming method was measured up to a document using 25% of its capacity (75% of the base capacity). It shrinks as the load grows (see 4.2) and is expected to shrink further, or reverse, as the payload fills the syndrome space. Near-full loads were not measured.
 - **One payload, three shares:** in the demo the same payload bits are embedded into all three shares, and the receiver extracts the document from the first share only. It is not independent embedding by three different data hiders.
-- **Receiver image recovery:** the receiver cannot see the original image, so its "image recovery" figure is the one the sender computed and put in the manifest. The recovered image itself is reconstructed on the receiver.
+- **Receiver image recovery:** the receiver cannot independently calculate a pixel-recovery percentage or verify similarity without the original image. The displayed percentage is computed by the sender before transfer and included in the manifest; the recovered image itself is reconstructed from the received shares. Corruption that breaks the document payload does not prevent the receiver from displaying that reconstructed image.
 - **Single runs:** each corruption level was run once with fixed seeds. We did not average over seeds.
 - **Replica test images:** the exact BMP files named in the paper were not available, so the six Analysis inputs are deterministic binary replicas of each category. Absolute numbers will differ from the paper.
 - **Reference implementations:** Ren, Li and Zhang are our own implementations of the published mechanisms with fixed parameters. They are not the authors' code. Runtimes come from the browser, not the paper's MATLAB setup.

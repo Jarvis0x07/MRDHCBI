@@ -197,49 +197,58 @@ async function receiveComplete(){
   try{
     const ext=s.map(x=>syndromeExtractRestore(x,m.w,m.h));
     const image=vcRecover(ext[0].restored,ext[1].restored,m.w,m.h);
-    const payloadBytes=bytesFromBits(ext[0].payload).slice(0,m.payloadBytes);
-    const doc=await parsePayload(payloadBytes,pairingKey);
-    // Exact original-image comparison is calculated at the sender and included in the manifest.
-    const verifiedImagePct=m.proposed.imageRecoveryPct;
-    const originalBytes=null;
-    const recovery={...m.proposed,receiverCrcOk:doc.crcOk,receiverDocumentName:doc.name,receiverDocumentSize:doc.body.length,
-      receiverCorrectedCodeErrors:ext.reduce((a,x)=>a+x.correctedCodeErrors,0),receiverImagePixels:image.length,
-      displayedImageRecoveryPct:verifiedImagePct};
-    // Make recovered document available.
-    const blob=new Blob([doc.body],{type:doc.mime||'application/octet-stream'});
-
-    // Recovered sender image -> data URL
     const imgCanvas=binaryToCanvas(image,m.w,m.h,Math.max(1,Math.min(4,Math.floor(512/m.w))));
     const imgURL=imgCanvas.toDataURL();
 
-    // Optional: preview text documents
+    let doc=null,documentError='';
+    try{
+      const payloadBytes=bytesFromBits(ext[0].payload).slice(0,m.payloadBytes);
+      doc=await parsePayload(payloadBytes,pairingKey);
+    }catch(e){
+      documentError=e.message;
+    }
+
+    const verifiedImagePct=m.proposed.imageRecoveryPct;
     let textPreview='';
-    if((doc.mime&&doc.mime.startsWith('text/'))||/\.txt$/i.test(doc.name)){
+    if(doc&&((doc.mime&&doc.mime.startsWith('text/'))||/\.txt$/i.test(doc.name))){
       textPreview=`<h3 style="margin-top:16px">Document preview</h3>
         <pre class="doc-preview">${escapeHtml(new TextDecoder().decode(doc.body.slice(0,2000)))}</pre>`;
     }
 
+    const documentMarkup=doc
+      ? `<div class="panel" style="margin-top:16px">
+          <h3>Recovered document</h3>
+          <p class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'The recovered document passed CRC-32 and is byte-for-byte valid.':'The recovered document failed CRC-32; corruption affected the payload.'}</p>
+          ${doc.crcOk?'':`<p class="hint">The extracted data may be damaged; the download contains the bytes that were recovered.</p>`}
+          ${textPreview}
+          <button class="primary" id="downloadRecovered" style="margin-top:14px">Download recovered document</button>
+        </div>`
+      : `<div class="panel" style="margin-top:16px">
+          <h3>Document recovery failed</h3>
+          <p class="danger">${escapeHtml(documentError)}</p>
+          <p class="hint">The recovered image is shown above; document corruption does not prevent viewing it.</p>
+        </div>`;
+
     $('receiverResult').innerHTML=`<div class="metric-grid">
       <div class="metric"><span>Image recovery</span><b>${verifiedImagePct.toFixed(2)}%</b><small>reported by sender (pixel-level)</small></div>
-      <div class="metric"><span>Document integrity</span><b class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'100%':'FAILED'}</b><small>CRC-32 verification</small></div>
-      <div class="metric"><span>Document</span><b>${fmtBytes(doc.body.length)}</b><small>${escapeHtml(doc.name)}</small></div>
+      <div class="metric"><span>Document integrity</span><b class="${doc?(doc.crcOk?'success':'danger'):'danger'}">${doc?(doc.crcOk?'100%':'FAILED'):'UNREADABLE'}</b><small>CRC-32 verification</small></div>
+      <div class="metric"><span>Document</span><b>${doc?fmtBytes(doc.body.length):'Unavailable'}</b><small>${doc?escapeHtml(doc.name):'Payload could not be parsed'}</small></div>
       <div class="metric"><span>Corruption</span><b>${m.corruption}%</b><small>simulated before transfer</small></div>
     </div>
 
     <div class="panel" style="margin-top:16px">
-      <h3>Recovered image (sender's input)</h3>
+      <h3>Recovered image (from received shares)</h3>
       <img src="${imgURL}" class="recovered-img" alt="Recovered binary image">
+      <p class="hint">The image above is the reconstruction from the received shares. The recovery percentage is measured by the sender against its original image; it cannot be independently calculated here without that original.</p>
     </div>
 
-    <div class="panel" style="margin-top:16px">
-      <h3>Recovered successfully</h3>
-      <p class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'The recovered document passed CRC-32 and is byte-for-byte valid.':'The recovered document failed CRC-32; corruption affected the payload.'}</p>
-      ${textPreview}
-      <button class="primary" id="downloadRecovered" style="margin-top:14px">Download recovered document</button>
-    </div>`;
+    ${documentMarkup}`;
 
     show('receiverWait',false);show('receiverResult');
-    $('downloadRecovered').onclick=()=>downloadBlob(blob,doc.name);
+    if(doc){
+      const blob=new Blob([doc.body],{type:doc.mime||'application/octet-stream'});
+      $('downloadRecovered').onclick=()=>downloadBlob(blob,doc.name);
+    }
     renderDashboard(m,'receiver');
   }catch(e){
     $('receiverResult').innerHTML=`<div class="panel"><h3>Recovery failed</h3><p class="danger">${escapeHtml(e.message)}</p></div>`;
