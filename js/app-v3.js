@@ -363,43 +363,109 @@ async function runUnifiedOurMethod(){
 async function renderUnifiedAnalysis(){
   $('analysisImages').innerHTML=PAPER_IMAGES.map(makeCategoryCard).join('');
   $('analysisSummary').innerHTML=`
-    <div class="metric"><span>Test categories</span><b>6</b><small>same six categories named by the paper</small></div><div class="metric"><span>Build</span><b>Analysis v3</b><small>original images only</small></div>
-    <div class="metric"><span>Base MRDHCBI</span><b>1.00 bpp</b><small>paper method</small></div>
-    <div class="metric"><span>Our Hamming</span><b>3.00 bpp</b><small>3 payload bits / source pixel</small></div>
-    <div class="metric"><span>Recovery target</span><b>100%</b><small>exact reversible recovery</small></div>`;
+    <div class="metric"><span>Test categories</span><b>6</b><small>same six categories named by the paper</small></div>
+    <div class="metric"><span>Base MRDHCBI</span><b>1.00 bpp</b><small>one hidden bit per source pixel</small></div>
+    <div class="metric"><span>Our Hamming</span><b>3.00 bpp</b><small>three hidden bits per source pixel</small></div>
+    <div class="metric"><span>Runtime note</span><b>ms</b><small>paper values use the paper's MATLAB/CPU setup; our value is browser runtime</small></div>`;
+
   const our=await runUnifiedOurMethod();
   const ourEmbed=PAPER_IMAGES.map(()=>3);
   const ourRuntime=PAPER_IMAGES.map(t=>our[t].totalMs);
   const baseEmbed=PAPER_IMAGES.map(()=>1);
   const baseRuntime=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]);
-  analysisCharts.forEach(c=>c.destroy());analysisCharts=[];
+
+  analysisCharts.forEach(c=>c.destroy()); analysisCharts=[];
+
   analysisCharts.push(new Chart($('analysisMainChart'),{type:'bar',data:{labels:PAPER_IMAGES,datasets:[
-    {label:'Ren [12] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][0])},{label:'Li [13] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][1])},{label:'Zhang [14] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][2])},{label:'Base MRDHCBI (paper)',data:baseEmbed},{label:'Our Hamming (implemented)',data:ourEmbed}
+    {label:'Ren [12] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][0])},
+    {label:'Li [13] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][1])},
+    {label:'Zhang [14] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][2])},
+    {label:'Base MRDHCBI (paper)',data:baseEmbed},
+    {label:'Our Hamming (implemented)',data:ourEmbed}
   ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Embedding rate (bpp)'}}}}}));
+
   analysisCharts.push(new Chart($('analysisRuntimeChart'),{type:'bar',data:{labels:PAPER_IMAGES,datasets:[
-    {label:'Ren [12]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][0])},{label:'Li [13]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][1])},{label:'Zhang [14]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][2])},{label:'Base MRDHCBI',data:baseRuntime},{label:'Our Hamming — browser run',data:ourRuntime}
+    {label:'Ren [12]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][0])},
+    {label:'Li [13]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][1])},
+    {label:'Zhang [14]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][2])},
+    {label:'Base MRDHCBI',data:baseRuntime},
+    {label:'Our Hamming — browser run',data:ourRuntime}
   ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Runtime (ms)'}}}}}));
-  const embedRanges=[...Array(3)].map(i=>{const v=PAPER_IMAGES.map(t=>PAPER_EMBED[t][i]);return Math.max(...v)-Math.min(...v)}).concat(0,0);
-  analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:METHODS,datasets:[{label:'Embedding-rate range across six categories (lower = more stable)',data:embedRanges}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
-  analysisCharts.push(new Chart($('analysisPrototypeChart'),{type:'bar',data:{labels:METHODS,datasets:[{label:'Payload density (bpp)',data:[...PAPER_IMAGES.map(()=>0),1,3]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+
+  // Stability = range across the six image categories. Lower range means less dependence on image type.
+  // This is intentionally a separate derived metric from the paper's bpp values.
+  const stabilityValues=METHODS.map((_,i)=>{
+    const vals=i<4?PAPER_IMAGES.map(t=>PAPER_EMBED[t][i]):ourEmbed;
+    return Math.max(...vals)-Math.min(...vals);
+  });
+  analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:METHODS,datasets:[
+    {label:'Embedding-rate range across six categories (lower = more stable)',data:stabilityValues}
+  ]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` Range: ${Number(ctx.raw).toFixed(2)} bpp`}}},scales:{y:{beginAtZero:true,title:{display:true,text:'Range (bpp)'}}}}}));
+
+  // Payload density = hidden payload bits per original source pixel. One scalar per method.
+  const densityValues=[
+    PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][0],0)/PAPER_IMAGES.length,
+    PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][1],0)/PAPER_IMAGES.length,
+    PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][2],0)/PAPER_IMAGES.length,
+    1,
+    3
+  ];
+  analysisCharts.push(new Chart($('analysisPrototypeChart'),{type:'bar',data:{labels:METHODS,datasets:[
+    {label:'Mean payload density (bpp)',data:densityValues}
+  ]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${Number(ctx.raw).toFixed(2)} bpp`}}},scales:{y:{beginAtZero:true,title:{display:true,text:'Mean payload density (bpp)'}}}}}));
+
   $('analysisChartTitle').textContent='Embedding rate — all methods on the same six paper categories';
-  $('analysisTable').innerHTML=`<table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}<th>Best bpp</th></tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_EMBED[t],3];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td>${Math.max(...v).toFixed(2)} • ${METHODS[v.indexOf(Math.max(...v))]}</td></tr>`}).join('')}</table>
-  <br><table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}</tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_RUNTIME[t],our[t].totalMs];return `<tr><td>${t}</td>${v.map((x,i)=>`<td>${x.toFixed(3)}${i===4?'*':''}</td>`).join('')}</tr>`}).join('')}</table>`;
+
+  // Full paper-style numerical tables: embedding rate and encryption runtime are shown as numbers, not only graphs.
+  const embedRows=PAPER_IMAGES.map(t=>{
+    const vals=[...PAPER_EMBED[t],3];
+    const best=Math.max(...vals), bestName=METHODS[vals.indexOf(best)];
+    return `<tr><td>${t}</td>${vals.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td>${best.toFixed(2)} • ${bestName}</td></tr>`;
+  }).join('');
+  const runtimeRows=PAPER_IMAGES.map(t=>{
+    const vals=[...PAPER_RUNTIME[t],our[t].totalMs];
+    const best=Math.min(...vals), bestName=METHODS[vals.indexOf(best)];
+    return `<tr><td>${t}</td>${vals.map((x,i)=>`<td>${x.toFixed(3)}${i===4?'*':''}</td>`).join('')}<td>${best.toFixed(3)} • ${bestName}</td></tr>`;
+  }).join('');
+  const meanEmbed=METHODS.map((_,i)=>i<4?PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][i],0)/6:3);
+  const meanRuntime=METHODS.map((_,i)=>i<4?PAPER_IMAGES.reduce((a,t)=>a+PAPER_RUNTIME[t][i],0)/6:ourRuntime.reduce((a,b)=>a+b,0)/6);
+  $('analysisTable').innerHTML=`
+    <h3>Embedding rate (bpp) — numerical values</h3>
+    <p class="hint">These are the values behind the embedding-rate graph. bpp means <b>bits per original/source pixel</b>; higher means more hidden payload capacity.</p>
+    <table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}<th>Highest bpp</th></tr>${embedRows}
+    <tr><th>Mean</th>${meanEmbed.map(x=>`<th>${x.toFixed(3)}</th>`).join('')}<th>—</th></tr></table>
+    <br>
+    <h3>Encryption / processing runtime (ms) — numerical values</h3>
+    <p class="hint">The first four columns are the paper's reported encryption runtimes. <b>*Our Hamming</b> is measured live in the browser and is not hardware-normalized against the paper's MATLAB/CPU measurements.</p>
+    <table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}<th>Lowest runtime</th></tr>${runtimeRows}
+    <tr><th>Mean</th>${meanRuntime.map((x,i)=>`<th>${x.toFixed(3)}${i===4?'*':''}</th>`).join('')}<th>—</th></tr></table>`;
+
   const functionalHeader = METHODS.map(function(method){ return '<th>'+escapeHtml(method)+'</th>'; }).join('');
   const functionalRows = FUNCTIONAL.map(function(row){
     return '<tr><td>'+escapeHtml(row[0])+'</td>'+row.slice(1).map(function(value){ return '<td>'+escapeHtml(value)+'</td>'; }).join('')+'</tr>';
   }).join('');
   $('functionalTable').innerHTML='<table class="details"><tr><th>Function</th>'+functionalHeader+'</tr>'+functionalRows+'</table>';
+
   const avgOurRuntime=ourRuntime.reduce((a,b)=>a+b,0)/ourRuntime.length;
-  $('derivedTable').innerHTML=`<table class="details"><tr><th>Metric</th><th>Base MRDHCBI</th><th>Our Hamming</th><th>Interpretation</th></tr>
-  <tr><td>Payload density</td><td>1.00 bpp</td><td>3.00 bpp</td><td>Higher payload density for our method</td></tr>
-  <tr><td>Stored bits / source pixel / share</td><td>3</td><td>7</td><td>Our method trades storage expansion for capacity</td></tr>
-  <tr><td>Storage expansion</td><td>3×</td><td>7×</td><td>Lower is preferable when capacity is held constant</td></tr>
-  <tr><td>Exact image recovery</td><td>100% by design</td><td>${PAPER_IMAGES.every(t=>our[t].exactImage)?'100%':'Measured below 100%'}</td><td>Measured on the six automatic category replicas</td></tr>
-  <tr><td>Exact payload recovery</td><td>100% under valid channel</td><td>${PAPER_IMAGES.every(t=>our[t].exactPayload)?'100%':'Measured below 100%'}</td><td>Measured on the three-bit payload</td></tr>
-  <tr><td>Our mean browser runtime</td><td>Paper reported: ${(PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]).reduce((a,b)=>a+b,0)/6).toFixed(3)} ms</td><td>${avgOurRuntime.toFixed(3)} ms*</td><td>*Different runtime environment; not a fair hardware-normalized comparison</td></tr></table>
+  const embedRanges=stabilityValues;
+  $('derivedTable').innerHTML=`
+  <h3>What the metrics mean</h3>
+  <table class="details">
+    <tr><th>Metric</th><th>Base MRDHCBI</th><th>Our Hamming</th><th>How to read it</th></tr>
+    <tr><td>Embedding rate / payload density</td><td>1.00 bpp</td><td>3.00 bpp</td><td>Bits of hidden data available per original image pixel. Higher = more capacity.</td></tr>
+    <tr><td>Stored bits / source pixel / share</td><td>3</td><td>7</td><td>How many bits each encrypted share stores for one original source pixel.</td></tr>
+    <tr><td>Storage expansion</td><td>3×</td><td>7×</td><td>Encrypted-share storage relative to the original pixel count. Lower means less expansion.</td></tr>
+    <tr><td>Embedding-rate stability range</td><td>0.00 bpp</td><td>0.00 bpp</td><td>For these two methods the capacity is fixed by construction; lower range means more stable across image categories.</td></tr>
+    <tr><td>Exact image recovery</td><td>100% by design</td><td>${PAPER_IMAGES.every(t=>our[t].exactImage)?'100%':'Measured below 100%'}</td><td>Whether every original binary pixel is recovered exactly in the automatic six-category experiment.</td></tr>
+    <tr><td>Exact payload recovery</td><td>100% under valid channel</td><td>${PAPER_IMAGES.every(t=>our[t].exactPayload)?'100%':'Measured below 100%'}</td><td>Whether every embedded payload bit is recovered exactly.</td></tr>
+    <tr><td>Mean browser runtime</td><td>Paper: ${(PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]).reduce((a,b)=>a+b,0)/6).toFixed(3)} ms</td><td>${avgOurRuntime.toFixed(3)} ms*</td><td>Runtime comparison is only descriptive because the environments differ.</td></tr>
+  </table>
+  <h3 style="margin-top:18px">Stability values</h3>
+  <p class="hint">Range = maximum embedding rate − minimum embedding rate across Cartoon, CAD, Texture, Mask, Pattern and Document. The paper's discussion says its visual-cryptography embedding space gives a stable rate across image features; this chart turns that observation into a directly readable range. fileciteturn0file0L367-L380</p>
+  <table class="details"><tr><th>Method</th><th>Range (bpp)</th><th>Mean bpp</th></tr>${METHODS.map((m,i)=>`<tr><td>${m}</td><td>${embedRanges[i].toFixed(2)}</td><td>${meanEmbed[i].toFixed(3)}</td></tr>`).join('')}</table>
   <p class="hint analysis-footnote">Paper values are reported/transcribed from Fig. 3 and Table I. Ren/Li/Zhang are not reimplemented in this browser; their values are literature results. Base MRDHCBI uses the paper's 1 bpp design. Our Hamming method is executed automatically on deterministic binary replicas of the six paper categories because the exact six BMP files are not contained in the supplied project. No pairing key or user-uploaded image is required.</p>`;
   $('analysisPanel').scrollIntoView({behavior:'smooth'});
 }
+
 function renderAnalysis(){renderUnifiedAnalysis().catch(e=>{console.error(e);$('analysisSummary').innerHTML=`<div class="metric"><span>Analysis error</span><b>See console</b><small>${escapeHtml(e.message)}</small></div>`});}
 $('newTxBtn').onclick=()=>location.reload();
