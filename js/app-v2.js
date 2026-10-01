@@ -361,3 +361,95 @@ function renderAnalysis(){
 }
 
 $('newTxBtn').onclick=()=>location.reload();
+
+// Live benchmark for the user's proposed Hamming-syndrome method.
+async function runHammingBenchmark(){
+  const input=$('analysisBenchmarkInput');
+  if(!input || !input.files[0]){alert('Choose a binary/grayscale test image first.');return;}
+  const btn=$('runHammingBenchmark');
+  btn.disabled=true;
+  $('hammingBenchmarkStatus').textContent='Running the actual Hamming-syndrome pipeline…';
+  try{
+    const image=await loadBinaryImage(input.files[0]);
+    const N=image.width*image.height;
+    // Deterministic 3-bit payload per source pixel, so payload recovery can be measured exactly.
+    const payload=new Uint8Array(N*3);
+    for(let i=0;i<payload.length;i++) payload[i]=((i*1103515245+12345)>>>16)&1;
+
+    const t0=performance.now();
+    const shares=vcEncrypt(image.bits,image.width,image.height,2026);
+    const t1=performance.now();
+    const marked=shares.map(s=>syndromeEmbed(s,payload,image.width,image.height));
+    const t2=performance.now();
+    const extracted=marked.map(s=>syndromeExtractRestore(s,image.width,image.height));
+    const recovered=vcRecover(extracted[0].restored,extracted[1].restored,image.width,image.height);
+    const t3=performance.now();
+
+    const payloadPct=byteAccuracy(payload,extracted[0].payload);
+    const imagePct=imageAccuracy(recovered,image.bits);
+    const perShareBits=marked[0].length;
+    const totalStoredBits=perShareBits*3;
+    const basePerShareBits=N*3;
+    const metrics={
+      image:`${image.width} × ${image.height}`,
+      pixels:N,
+      capacity:3,
+      perShareStored:7,
+      totalStoredPerPixel:21,
+      storageExpansion:totalStoredBits/N,
+      encryptionMs:t1-t0,
+      embeddingMs:t2-t1,
+      extractionRecoveryMs:t3-t2,
+      totalMs:t3-t0,
+      imageRecovery:imagePct,
+      imageExact:sameBits(recovered,image.bits),
+      payloadRecovery:payloadPct,
+      payloadExact:sameBits(extracted[0].payload,payload),
+      correctedErrors:extracted.reduce((a,x)=>a+x.correctedCodeErrors,0)
+    };
+
+    $('hammingBenchmarkSummary').innerHTML=`
+      <div class="metric"><span>Embedding capacity</span><b>3.00 bpp</b><small>3 payload bits / source pixel</small></div>
+      <div class="metric"><span>Stored per share</span><b>7.00 bits/px</b><small>Hamming(7,4)</small></div>
+      <div class="metric"><span>Image recovery</span><b>${metrics.imageRecovery.toFixed(2)}%</b><small>${metrics.imageExact?'exact':'not exact'}</small></div>
+      <div class="metric"><span>Payload recovery</span><b>${metrics.payloadRecovery.toFixed(2)}%</b><small>${metrics.payloadExact?'exact':'not exact'}</small></div>
+      <div class="metric"><span>Total runtime</span><b>${metrics.totalMs.toFixed(2)} ms</b><small>encryption + embed + extraction/recovery</small></div>
+      <div class="metric"><span>Total storage</span><b>${metrics.storageExpansion.toFixed(1)}×</b><small>across 3 marked shares vs source pixels</small></div>`;
+
+    if(window.__hammingRuntimeChart)window.__hammingRuntimeChart.destroy();
+    window.__hammingRuntimeChart=new Chart($('hammingRuntimeChart'),{type:'bar',data:{labels:['VC encryption','Hamming embedding','Extraction + recovery','Total'],datasets:[{label:'Runtime (ms)',data:[metrics.encryptionMs,metrics.embeddingMs,metrics.extractionRecoveryMs,metrics.totalMs]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+
+    const corruptionLevels=[0,1,2,5,10];
+    const imgScores=[],payloadScores=[];
+    for(let ci=0;ci<corruptionLevels.length;ci++){
+      const pct=corruptionLevels[ci];
+      const tx=marked.map((s,i)=>pct?corruptBits(s,pct,9000+i):s);
+      const ex=tx.map(s=>syndromeExtractRestore(s,image.width,image.height));
+      const rec=vcRecover(ex[0].restored,ex[1].restored,image.width,image.height);
+      imgScores.push(imageAccuracy(rec,image.bits));
+      payloadScores.push(byteAccuracy(payload,ex[0].payload));
+    }
+    if(window.__hammingCorruptionChart)window.__hammingCorruptionChart.destroy();
+    window.__hammingCorruptionChart=new Chart($('hammingCorruptionChart'),{type:'line',data:{labels:corruptionLevels.map(x=>x+'%'),datasets:[{label:'Image recovery %',data:imgScores,tension:.2},{label:'Payload recovery %',data:payloadScores,tension:.2}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{min:0,max:100}}}});
+
+    $('hammingBenchmarkTable').innerHTML=`<table class="details"><tr><th>Metric</th><th>Measured result</th><th>Interpretation</th></tr>
+      <tr><td>Image</td><td>${escapeHtml(input.files[0].name)} (${metrics.image})</td><td>Actual uploaded test image</td></tr>
+      <tr><td>Payload capacity</td><td>3 bpp</td><td>3 payload bits per original image pixel</td></tr>
+      <tr><td>Marked share width</td><td>7× original width</td><td>Hamming(7,4) codeword per 3-bit VC block</td></tr>
+      <tr><td>Storage expansion</td><td>${metrics.storageExpansion.toFixed(1)}×</td><td>Three 7-bit shares per source pixel</td></tr>
+      <tr><td>Image recovery</td><td>${metrics.imageRecovery.toFixed(4)}% (${metrics.imageExact?'exact':'not exact'})</td><td>Recovered from two restored shares</td></tr>
+      <tr><td>Payload recovery</td><td>${metrics.payloadRecovery.toFixed(4)}% (${metrics.payloadExact?'exact':'not exact'})</td><td>Compared with deterministic 3-bit/pixel payload</td></tr>
+      <tr><td>Encryption time</td><td>${metrics.encryptionMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
+      <tr><td>Embedding time</td><td>${metrics.embeddingMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
+      <tr><td>Extraction + recovery</td><td>${metrics.extractionRecoveryMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
+      <tr><td>Corrected Hamming errors</td><td>${metrics.correctedErrors}</td><td>At 0% corruption, expected to be zero</td></tr>
+    </table>`;
+    $('hammingBenchmarkStatus').textContent=`Benchmark complete for ${input.files[0].name}. These values were measured by running your Hamming-syndrome implementation in this browser; they are not paper-reported values.`;
+  }catch(e){
+    console.error(e);
+    $('hammingBenchmarkStatus').textContent='Benchmark failed: '+e.message;
+    alert('Hamming benchmark failed: '+e.message);
+  }finally{btn.disabled=false;}
+}
+
+if($('runHammingBenchmark'))$('runHammingBenchmark').onclick=runHammingBenchmark;
