@@ -36,6 +36,11 @@
           <strong>Receiver</strong>
           <small>Receive, extract, restore, and verify the transaction.</small>
         </button>
+        <button class="role-card" data-role="analysis">
+          <span class="role-icon">◈</span>
+          <strong>Analysis</strong>
+          <small>Compare the paper, base MRDHCBI, and our Hamming-syndrome approach.</small>
+        </button>
       </div>
       <div class="privacy-note">Files are transferred peer-to-peer after pairing. GitHub Pages hosts the interface; it does not store the transferred files.</div>
     </section>
@@ -115,6 +120,54 @@
         <div class="chart-card"><h3>Recovery</h3><canvas id="recoveryChart"></canvas></div>
         <div class="chart-card"><h3>Storage / share</h3><canvas id="storageChart"></canvas></div>
         <div class="chart-card"><h3>Transaction details</h3><div id="detailsTable"></div></div>
+      </div>
+    </section>
+
+    <section id="analysisPanel" class="hidden">
+      <div class="panel-head">
+        <div><p class="eyebrow">PAPER-BASED EVALUATION</p><h2>Comparative Analysis</h2></div>
+        <button class="ghost" id="analysisBackBtn">← Back</button>
+      </div>
+      <div class="analysis-note">
+        <b>Evaluation set:</b> Cartoon, CAD, Texture, Mask, Pattern and Document — the six test categories used by the paper.
+        The literature values below are the paper's reported results for Ren et al. [12], Li et al. [13], Zhang et al. [14], and the paper's Presented approach.
+        Your current Hamming-syndrome prototype is shown separately where its engineering metrics are directly comparable.
+      </div>
+      <div class="analysis-controls">
+        <label>Metric view<select id="analysisMetric">
+          <option value="embedding">Embedding rate</option>
+          <option value="runtime">Encryption runtime</option>
+          <option value="stability">Stability across image types</option>
+        </select></label>
+        <label>Image category<select id="analysisImage">
+          <option value="all">All six images</option>
+          <option value="Cartoon">Cartoon (183.bmp)</option>
+          <option value="CAD">CAD (487.bmp)</option>
+          <option value="Texture">Texture (760.bmp)</option>
+          <option value="Mask">Mask (1001.bmp)</option>
+          <option value="Pattern">Pattern (1704.bmp)</option>
+          <option value="Document">Document (3060.bmp)</option>
+        </select></label>
+      </div>
+      <div id="analysisSummary" class="metric-grid"></div>
+      <div class="analysis-images" id="analysisImages"></div>
+      <div class="chart-grid">
+        <div class="chart-card wide-chart"><h3 id="analysisChartTitle">Embedding rate across the six paper test images</h3><canvas id="analysisMainChart"></canvas></div>
+        <div class="chart-card"><h3>Encryption runtime by image</h3><canvas id="analysisRuntimeChart"></canvas></div>
+        <div class="chart-card"><h3>Embedding-rate stability</h3><canvas id="analysisStabilityChart"></canvas></div>
+        <div class="chart-card"><h3>Prototype capacity / storage</h3><canvas id="analysisPrototypeChart"></canvas></div>
+      </div>
+      <div class="panel analysis-table-panel">
+        <h3>All reported values</h3>
+        <div id="analysisTable"></div>
+      </div>
+      <div class="panel analysis-table-panel">
+        <h3>Functional comparison from the paper</h3>
+        <div id="functionalTable"></div>
+      </div>
+      <div class="panel analysis-table-panel">
+        <h3>Extra derived metrics</h3>
+        <div id="derivedTable"></div>
       </div>
     </section>
   </main>
