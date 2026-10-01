@@ -119,7 +119,7 @@ We repeated the corruption sweep with documents sized to 25%, 50% and 75% of the
 | 15% | 69.74 / 76.51 | 70.06 / 75.33 | 70.54 / 74.27 |
 | 20% | 63.62 / 67.72 | 63.89 / 66.91 | 64.42 / 66.44 |
 
-![Image recovery by payload load](docs/base_vs_hamming_by_load.png)
+![Image recovery by payload load](base_vs_hamming_by_load.png)
 
 **Observations**
 
