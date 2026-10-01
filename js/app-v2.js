@@ -285,8 +285,8 @@ const PAPER_FILES={Cartoon:'183.bmp',CAD:'487.bmp',Texture:'760.bmp',Mask:'1001.
 const METHODS=['Ren et al. [12]','Li et al. [13]','Zhang et al. [14]','Base MRDHCBI (paper)','Our Hamming'];
 // Fig. 3 values are read from the paper; Table I values are transcribed exactly.
 const PAPER_EMBED={
-  Cartoon:[0.42,0.43,0.39,0.50], CAD:[0.24,0.25,0.22,0.50], Texture:[0.17,0.19,0.15,0.50],
-  Mask:[0.80,0.83,0.85,0.50], Pattern:[0.30,0.31,0.24,0.50], Document:[0.46,0.46,0.41,0.50]
+  Cartoon:[0.42,0.43,0.39,1.00], CAD:[0.24,0.25,0.22,1.00], Texture:[0.17,0.19,0.15,1.00],
+  Mask:[0.80,0.83,0.85,1.00], Pattern:[0.30,0.31,0.24,1.00], Document:[0.46,0.46,0.41,1.00]
 };
 const PAPER_RUNTIME={
   Cartoon:[71.1064,72.1823,54.8561,60.9352], CAD:[73.7246,75.8646,59.7081,61.1015],
@@ -339,19 +339,11 @@ function categoryBits(type,w=128,h=128){
 function bitsCanvas(bits,w,h,scale=1){return binaryToCanvas(bits,w,h,scale).toDataURL()}
 function makeCategoryCard(type){
   const bits=categoryBits(type); const w=128,h=128;
-  const shares=vcEncrypt(bits,w,h,1000+PAPER_IMAGES.indexOf(type));
-  const basePayload=new Uint8Array(w*h);for(let i=0;i<basePayload.length;i++)basePayload[i]=(i*17+PAPER_IMAGES.indexOf(type))%2;
-  const baseMarked=baseEmbed(shares[0],basePayload,w,h);
-  const hamPayload=new Uint8Array(w*h*3);for(let i=0;i<hamPayload.length;i++)hamPayload[i]=(i*31+7)%2;
-  const hamMarked=syndromeEmbed(shares[0],hamPayload,w,h);
   return `<div class="analysis-experiment-card">
     <div class="analysis-experiment-head"><b>${type}</b><span>${PAPER_FILES[type]} • paper category</span></div>
-    <div class="analysis-thumb-grid">
-      <figure><img src="${bitsCanvas(bits,w,h,1)}"><figcaption>Original</figcaption></figure>
-      <figure><img src="${bitsCanvas(baseMarked, w*3,h,1)}"><figcaption>Base MRDHCBI<br>1 bpp</figcaption></figure>
-      <figure><img src="${bitsCanvas(hamMarked,w*7,h,1)}"><figcaption>Our Hamming<br>3 bpp</figcaption></figure>
+    <div class="analysis-thumb-grid analysis-original-only">
+      <figure><img src="${bitsCanvas(bits,w,h,1)}" class="analysis-original-img"><figcaption>Original image</figcaption></figure>
     </div>
-    <div class="analysis-experiment-stats"><span>Base payload: ${(w*h/8/1024).toFixed(2)} KB</span><span>Hamming payload: ${(w*h*3/8/1024).toFixed(2)} KB</span><span>Shares: 3</span></div>
   </div>`;
 }
 async function runUnifiedOurMethod(){
@@ -385,7 +377,7 @@ async function renderUnifiedAnalysis(){
     {label:'Ren [12] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][0])},{label:'Li [13] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][1])},{label:'Zhang [14] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][2])},{label:'Base MRDHCBI (paper)',data:baseEmbed},{label:'Our Hamming (implemented)',data:ourEmbed}
   ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Embedding rate (bpp)'}}}}}));
   analysisCharts.push(new Chart($('analysisRuntimeChart'),{type:'bar',data:{labels:PAPER_IMAGES,datasets:[
-    {label:'Ren [12]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][0])},{label:'Li [13]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][1])},{label:'Zhang [14]',data:PAPER_RUNTIME[t][2]},{label:'Base MRDHCBI',data:baseRuntime},{label:'Our Hamming — browser run',data:ourRuntime}
+    {label:'Ren [12]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][0])},{label:'Li [13]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][1])},{label:'Zhang [14]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][2])},{label:'Base MRDHCBI',data:baseRuntime},{label:'Our Hamming — browser run',data:ourRuntime}
   ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Runtime (ms)'}}}}}));
   const embedRanges=[...Array(3)].map(i=>{const v=PAPER_IMAGES.map(t=>PAPER_EMBED[t][i]);return Math.max(...v)-Math.min(...v)}).concat(0,0);
   analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:METHODS,datasets:[{label:'Embedding-rate range across six categories (lower = more stable)',data:embedRanges}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
