@@ -1363,8 +1363,14 @@ footer{
     max-width:10px;
   }
 }
-#receiverResult pre {
-  white-space: pre-wrap;
+#receiverResult {
+  min-width: 0;
+  overflow: hidden;
+}
+
+#receiverResult * {
+  max-width: 100%;
+  white-space: pre-wrap !important;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
