@@ -1,4 +1,3 @@
-
 let role=null, peer=null, conn=null, pairingKey='', imageState=null, documentFile=null, charts=[], analysisCharts=[];
 const $=id=>document.getElementById(id);
 const show=(id,on=true)=>$(id).classList.toggle('hidden',!on);
@@ -209,36 +208,35 @@ async function receiveComplete(){
     // Make recovered document available.
     const blob=new Blob([doc.body],{type:doc.mime||'application/octet-stream'});
 
-          // Recovered sender image -> data URL
-      const imgCanvas=binaryToCanvas(image,m.w,m.h,Math.max(1,Math.min(4,Math.floor(512/m.w))));
-      const imgURL=imgCanvas.toDataURL();
+    // Recovered sender image -> data URL
+    const imgCanvas=binaryToCanvas(image,m.w,m.h,Math.max(1,Math.min(4,Math.floor(512/m.w))));
+    const imgURL=imgCanvas.toDataURL();
 
-      // Optional: preview text documents
-      let textPreview='';
-      if((doc.mime&&doc.mime.startsWith('text/'))||/\.txt$/i.test(doc.name)){
-        textPreview=`<h3 style="margin-top:16px">Document preview</h3>
-          <pre class="doc-preview">${escapeHtml(new TextDecoder().decode(doc.body.slice(0,2000)))}</pre>`;
-      }
+    // Optional: preview text documents
+    let textPreview='';
+    if((doc.mime&&doc.mime.startsWith('text/'))||/\.txt$/i.test(doc.name)){
+      textPreview=`<h3 style="margin-top:16px">Document preview</h3>
+        <pre class="doc-preview">${escapeHtml(new TextDecoder().decode(doc.body.slice(0,2000)))}</pre>`;
+    }
 
     $('receiverResult').innerHTML=`<div class="metric-grid">
-      <div class="metric"><span>Image recovery</span><b>${verifiedImagePct.toFixed(2)}%</b><small>pixel-level</small></div>
+      <div class="metric"><span>Image recovery</span><b>${verifiedImagePct.toFixed(2)}%</b><small>reported by sender (pixel-level)</small></div>
       <div class="metric"><span>Document integrity</span><b class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'100%':'FAILED'}</b><small>CRC-32 verification</small></div>
       <div class="metric"><span>Document</span><b>${fmtBytes(doc.body.length)}</b><small>${escapeHtml(doc.name)}</small></div>
       <div class="metric"><span>Corruption</span><b>${m.corruption}%</b><small>simulated before transfer</small></div>
     </div>
 
- <div class="panel" style="margin-top:16px">
+    <div class="panel" style="margin-top:16px">
       <h3>Recovered image (sender's input)</h3>
       <img src="${imgURL}" class="recovered-img" alt="Recovered binary image">
     </div>
-    
+
     <div class="panel" style="margin-top:16px">
       <h3>Recovered successfully</h3>
       <p class="${doc.crcOk?'success':'danger'}">${doc.crcOk?'The recovered document passed CRC-32 and is byte-for-byte valid.':'The recovered document failed CRC-32; corruption affected the payload.'}</p>
       ${textPreview}
       <button class="primary" id="downloadRecovered" style="margin-top:14px">Download recovered document</button>
     </div>`;
-
 
     show('receiverWait',false);show('receiverResult');
     $('downloadRecovered').onclick=()=>downloadBlob(blob,doc.name);
@@ -249,7 +247,40 @@ async function receiveComplete(){
   }
 }
 
-function renderDashboard(meta,who){
+// ---------------------------------------------------------------------------
+// Dashboard (sender + receiver)
+// ---------------------------------------------------------------------------
+
+function dashboardPalette(){
+  const dark=document.documentElement.dataset.theme==='dark';
+  return dark?['#63d6bd','#d59bf6']:['#147d6a','#7b2cbf']; // [Base, Proposed]
+}
+
+function drawDashboardCharts(meta){
+  const p=meta.proposed||{},b=meta.base;
+  const pal=dashboardPalette();
+  const ds=(label,data)=>[{label,data,backgroundColor:pal,borderColor:pal,borderWidth:1,borderRadius:6,maxBarThickness:90}];
+  charts.forEach(c=>c.destroy());charts=[];
+  charts.push(new Chart($('capacityChart'),{
+    type:'bar',
+    data:{labels:['Base','Proposed'],datasets:ds('Payload capacity (bits/source pixel)',[1,3])},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  }));
+  charts.push(new Chart($('recoveryChart'),{
+    type:'bar',
+    // null (not 0) when the base method could not fit the document, so the bar is skipped instead of reading as a failure.
+    data:{labels:['Base','Proposed'],datasets:ds('Image recovery %',[b?b.imageRecoveryPct:null,p.imageRecoveryPct??0])},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:100}}}
+  }));
+  charts.push(new Chart($('storageChart'),{
+    type:'bar',
+    data:{labels:['Base','Proposed'],datasets:ds('Stored bits / source pixel',[3,7])},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  }));
+}
+
+function renderDashboard(meta,who,noScroll=false){
+  window.lastDash={meta,who};
   show('dashboard');
   const p=meta.proposed||{},b=meta.base;
   const baseCapacity=meta.originalImageBits, propCapacity=meta.originalImageBits*3;
@@ -267,13 +298,14 @@ function renderDashboard(meta,who){
     <tr><td>Document recovery</td><td>${b?(b.documentRecoveryPct??0).toFixed(2)+'%':'N/A — document may exceed base capacity'}</td><td>${(p.documentRecoveryPct??(p.documentExact?100:0)).toFixed(2)}%</td></tr>
     <tr><td>Exact document</td><td>${b?(b.documentExact?'YES':'NO'):'—'}</td><td>${p.documentExact?'YES':'NO'}</td></tr>
     <tr><td>Transaction</td><td colspan="2">${who} • ${meta.w}×${meta.h} • ${fmtBytes(meta.documentBytes)} document</td></tr></table>`;
-  charts.forEach(c=>c.destroy());charts=[];
-  charts.push(new Chart($('capacityChart'),{type:'bar',data:{labels:['Base','Proposed'],datasets:[{label:'Payload capacity (bits/source pixel)',data:[1,3]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
-  charts.push(new Chart($('recoveryChart'),{type:'bar',data:{labels:['Base','Proposed'],datasets:[{label:'Image recovery %',data:[b?.imageRecoveryPct??0,p.imageRecoveryPct??0]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:100}}}}));
-  charts.push(new Chart($('storageChart'),{type:'bar',data:{labels:['Base','Proposed'],datasets:[{label:'Stored bits / source pixel',data:[3,7]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
-  $('dashboard').scrollIntoView({behavior:'smooth'});
+  drawDashboardCharts(meta);
+  if(!noScroll)$('dashboard').scrollIntoView({behavior:'smooth'});
 }
 
+
+// ---------------------------------------------------------------------------
+// Analysis
+// ---------------------------------------------------------------------------
 
 const PAPER_IMAGES=['Cartoon','CAD','Texture','Mask','Pattern','Document'];
 const PAPER_FILES={Cartoon:'Cartoon183.bmp',CAD:'CAD487.bmp',Texture:'Texture760.bmp',Mask:'Mask1001.bmp',Pattern:'Pattern1704.bmp',Document:'Document3060.bmp'};
@@ -368,8 +400,23 @@ async function renderUnifiedAnalysis(){
 }
 function renderAnalysis(){renderUnifiedAnalysis().catch(e=>{console.error(e);$('analysisSummary').innerHTML=`<div class="metric"><span>Analysis error</span><b>See console</b><small>${escapeHtml(e.message)}</small></div>`})}
 
-// Theme: persist and redraw charts when the palette changes.
-function applyTheme(theme){document.documentElement.dataset.theme=theme;localStorage.setItem('mrdhcbi-theme',theme);const b=$('themeToggle');if(b)b.textContent=theme==='dark'?'Switch to light':'Switch to dark';if(typeof Chart!=='undefined'){Chart.defaults.color=theme==='dark'?'#d8cfc4':'#5f574e';Chart.defaults.borderColor=theme==='dark'?'#493b32':'#d8c9b3';Chart.defaults.font.family='Inter, system-ui, sans-serif';}if(role==='analysis'&&document.getElementById('analysisPanel')&&!document.getElementById('analysisPanel').classList.contains('hidden'))setTimeout(()=>renderUnifiedAnalysis(),50)}
+function applyTheme(theme){
+  document.documentElement.dataset.theme=theme;
+  localStorage.setItem('mrdhcbi-theme',theme);
+  const b=$('themeToggle');
+  if(b)b.textContent=theme==='dark'?'Switch to light':'Switch to dark';
+  if(typeof Chart!=='undefined'){
+    Chart.defaults.color=theme==='dark'?'#d8cfc4':'#5f574e';
+    Chart.defaults.borderColor=theme==='dark'?'#493b32':'#d8c9b3';
+    Chart.defaults.font.family='Inter, system-ui, sans-serif';
+  }
+  // Redraw the Analysis charts if that panel is open.
+  if(role==='analysis'&&document.getElementById('analysisPanel')&&!document.getElementById('analysisPanel').classList.contains('hidden'))
+    setTimeout(()=>renderUnifiedAnalysis(),50);
+  // Redraw the sender/receiver dashboard charts (no scroll jump) so bar colours follow the theme.
+  if(window.lastDash&&!$('dashboard').classList.contains('hidden'))
+    setTimeout(()=>drawDashboardCharts(window.lastDash.meta),50);
+}
 applyTheme(localStorage.getItem('mrdhcbi-theme')||'light');
 $('themeToggle').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
 $('newTxBtn').onclick=()=>location.reload();
