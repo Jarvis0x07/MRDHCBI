@@ -363,7 +363,7 @@ async function runUnifiedOurMethod(){
 async function renderUnifiedAnalysis(){
   $('analysisImages').innerHTML=PAPER_IMAGES.map(makeCategoryCard).join('');
   $('analysisSummary').innerHTML=`
-    <div class="metric"><span>Test categories</span><b>6</b><small>same six categories named by the paper</small></div>
+    <div class="metric"><span>Test categories</span><b>6</b><small>same six categories named by the paper</small></div><div class="metric"><span>Build</span><b>Analysis v3</b><small>original images only</small></div>
     <div class="metric"><span>Base MRDHCBI</span><b>1.00 bpp</b><small>paper method</small></div>
     <div class="metric"><span>Our Hamming</span><b>3.00 bpp</b><small>3 payload bits / source pixel</small></div>
     <div class="metric"><span>Recovery target</span><b>100%</b><small>exact reversible recovery</small></div>`;
@@ -385,7 +385,11 @@ async function renderUnifiedAnalysis(){
   $('analysisChartTitle').textContent='Embedding rate — all methods on the same six paper categories';
   $('analysisTable').innerHTML=`<table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}<th>Best bpp</th></tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_EMBED[t],3];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td>${Math.max(...v).toFixed(2)} • ${METHODS[v.indexOf(Math.max(...v))]}</td></tr>`}).join('')}</table>
   <br><table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}</tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_RUNTIME[t],our[t].totalMs];return `<tr><td>${t}</td>${v.map((x,i)=>`<td>${x.toFixed(3)}${i===4?'*':''}</td>`).join('')}</tr>`}).join('')}</table>`;
-  $('functionalTable').innerHTML=`<table class="details"><tr><th>Function</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}</tr>${FUNCTIONAL.map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table>`;
+  const functionalHeader = METHODS.map(function(method){ return '<th>'+escapeHtml(method)+'</th>'; }).join('');
+  const functionalRows = FUNCTIONAL.map(function(row){
+    return '<tr><td>'+escapeHtml(row[0])+'</td>'+row.slice(1).map(function(value){ return '<td>'+escapeHtml(value)+'</td>'; }).join('')+'</tr>';
+  }).join('');
+  $('functionalTable').innerHTML='<table class="details"><tr><th>Function</th>'+functionalHeader+'</tr>'+functionalRows+'</table>';
   const avgOurRuntime=ourRuntime.reduce((a,b)=>a+b,0)/ourRuntime.length;
   $('derivedTable').innerHTML=`<table class="details"><tr><th>Metric</th><th>Base MRDHCBI</th><th>Our Hamming</th><th>Interpretation</th></tr>
   <tr><td>Payload density</td><td>1.00 bpp</td><td>3.00 bpp</td><td>Higher payload density for our method</td></tr>
