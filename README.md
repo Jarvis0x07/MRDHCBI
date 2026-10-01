@@ -93,7 +93,7 @@ Setup: 128×128 binary image, 46-byte document (under 1% of our method's 6 KB ca
 | 15% | 69.73% | 77.22% | 7.49 |
 | 20% | 63.64% | 68.01% | 4.37 |
 
-![Image recovery vs. corruption](docs/base_vs_hamming_recovery.png)
+![Image recovery vs. corruption](base_vs_hamming_recovery.png)
 
 **Observations**
 
