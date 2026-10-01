@@ -249,3 +249,89 @@ export function sharePngBlob(bits,w,h,method='base'){
   const c=binaryToCanvas(bits,width,h,1);
   return canvasToBlob(c);
 }
+
+
+// ---------------------------------------------------------------------------
+// Reference implementations of the three RDHCBI comparison families.
+// These are executable implementations of the mechanisms described in the
+// cited papers: block classification, prediction, and auxiliary-map coding.
+// They deliberately report only values produced by this code; no published
+// numerical results are hard-coded into the analysis.
+// ---------------------------------------------------------------------------
+
+function xorBits(bits,seed=0x13579BDF){
+  const out=new Uint8Array(bits.length); let x=seed>>>0;
+  for(let i=0;i<bits.length;i++){
+    x^=x<<13;x^=x>>>17;x^=x<<5;x>>>=0;
+    out[i]=bits[i]^((x>>>31)&1);
+  }
+  return out;
+}
+function bitMajority(bits,idxs){let s=0;for(const i of idxs)if(i>=0)s+=bits[i];return s*2>=idxs.length?1:0;}
+function same(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
+function accuracy(a,b){let n=Math.min(a.length,b.length),ok=0;for(let i=0;i<n;i++)if(a[i]===b[i])ok++;return b.length?100*ok/b.length:0;}
+function huffLengths(freq){
+  const nodes=Object.entries(freq).filter(([,v])=>v>0).map(([sym,w])=>({sym:+sym,w,depth:0,left:null,right:null}));
+  if(nodes.length<=1)return {[nodes[0]?.sym??0]:1};
+  let q=nodes.slice();
+  while(q.length>1){q.sort((a,b)=>a.w-b.w);const a=q.shift(),b=q.shift();q.push({sym:null,w:a.w+b.w,depth:0,left:a,right:b});}
+  const out={};const walk=(n,d)=>{if(n.sym!==null){out[n.sym]=Math.max(1,d);return;}walk(n.left,d+1);walk(n.right,d+1)};walk(q[0],0);return out;
+}
+function halvingCompressedLength(bits,T0=2,T1=2){
+  if(!bits.length)return 0; let q=[];let r=[];let i=0;
+  while(i<bits.length){const v=bits[i],T=v?T1:T0;let j=i;while(j<bits.length&&bits[j]===v)j++;let L=j-i;
+    let quotient=L<T?L:Math.floor((L+T)/2),rem=L<T?0:(L+T)%2;
+    for(let k=0;k<quotient;k++)q.push(v); if(L>=T)r.push(rem); i=j;
+  }
+  return q.length+r.length;
+}
+function blockInfo(bits,w,h,N,mode){
+  const blocks=[];const typeBits=[];const eligible=new Uint8Array(bits.length);const pred=new Uint8Array(bits.length);
+  for(let by=0;by<h;by+=N)for(let bx=0;bx<w;bx+=N){
+    const cells=[];for(let y=by;y<Math.min(by+N,h);y++)for(let x=bx;x<Math.min(bx+N,w);x++)cells.push(y*w+x);
+    const ones=cells.reduce((s,i)=>s+bits[i],0);const pure=ones===0||ones===cells.length;
+    const typ=pure?(ones?'white':'black'):'mixed';typeBits.push(pure?1:0);blocks.push({cells,pure,type:typ,anchor:cells[cells.length-1]});
+    if(pure){for(const idx of cells)if(idx!==cells[cells.length-1])eligible[idx]=1;}
+    else {
+      // Cross/checker segmentation: one parity is embeddable, the other is
+      // retained as shared prediction pixels.
+      for(const idx of cells){const y=Math.floor(idx/w),x=idx%w;if(((x+y)&1)!==0)continue;
+        const neigh=[];
+        for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]){const nx=x+dx,ny=y+dy;if(nx>=bx&&nx<bx+N&&ny>=by&&ny<by+N&&nx<w&&ny<h)neigh.push(ny*w+nx)}
+        if(!neigh.length)continue;
+        const p=bitMajority(bits,neigh);pred[idx]=p;
+        if(p===bits[idx])eligible[idx]=1;
+      }
+    }
+  }
+  return {blocks,typeBits,eligible,pred};
+}
+function executePredictionMethod(bits,w,h,{kind,N=4,T0=2,T1=2,seed=1}){
+  const t0=performance.now();
+  const info=blockInfo(bits,w,h,N,kind);
+  const typeLen=kind==='ren'?info.typeBits.length:kind==='li'?halvingCompressedLength(info.typeBits,T0,T1):0;
+  let auxLen=typeLen;
+  if(kind==='zhang'){
+    const freq={0:0,1:0,2:0};for(const b of info.blocks)freq[b.type==='black'?0:b.type==='white'?1:2]++;
+    const lens=huffLengths(freq);auxLen=Object.entries(freq).reduce((s,[k,v])=>s+(v*(lens[k]||1)),0);
+  }
+  const encryptionInput=xorBits(bits,seed);
+  const encryptionMs=performance.now()-t0;
+  const positions=[];for(let i=0;i<info.eligible.length;i++)if(info.eligible[i])positions.push(i);
+  const capacity=Math.max(0,positions.length-auxLen);
+  const payload=new Uint8Array(capacity);for(let i=0;i<capacity;i++)payload[i]=(i*73+kind.length*11+7)&1;
+  const e0=performance.now();const marked=encryptionInput.slice();for(let i=0;i<capacity;i++)marked[positions[i+auxLen]]=payload[i];const embeddingMs=performance.now()-e0;
+  const x0=performance.now();const extracted=new Uint8Array(capacity);for(let i=0;i<capacity;i++)extracted[i]=marked[positions[i+auxLen]];
+  const decrypted=xorBits(marked,seed);
+  const recovered=decrypted.slice();
+  for(const block of info.blocks){
+    if(block.pure){const a=decrypted[block.anchor];for(const idx of block.cells)recovered[idx]=a;}
+    else {for(const idx of block.cells){if(!info.eligible[idx])continue;const y=Math.floor(idx/w),x=idx%w;const neigh=[];for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]){const nx=x+dx,ny=y+dy;if(nx>=0&&nx<w&&ny>=0&&ny<h&&Math.floor(nx/N)===Math.floor(x/N)&&Math.floor(ny/N)===Math.floor(y/N))neigh.push(ny*w+nx)}recovered[idx]=bitMajority(decrypted,neigh);}}
+  }
+  const extractionMs=performance.now()-x0;
+  return {bpp:capacity/(w*h),capacityBits:capacity,stored:1,auxBits:auxLen,encryptionMs,embeddingMs,extractionMs,totalMs:encryptionMs+embeddingMs+extractionMs,imageRecovery:accuracy(recovered,bits),payloadRecovery:accuracy(extracted,payload),exactImage:same(recovered,bits),exactPayload:same(extracted,payload)};
+}
+
+export function benchmarkRen(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'ren',N:4,seed:0x52454E});}
+export function benchmarkLi(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'li',N:4,T0:2,T1:2,seed:0x4C4954});}
+export function benchmarkZhang(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'zhang',N:4,seed:0x5A4847});}
