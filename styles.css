@@ -70,3 +70,4 @@
 .analysis-benchmark-controls label{display:grid;gap:8px;font-weight:600}
 .analysis-benchmark-controls input[type=file]{width:100%}
 @media(max-width:760px){.analysis-benchmark-controls{grid-template-columns:1fr}}
+.analysis-original-only{display:flex;justify-content:center;align-items:flex-start}.analysis-original-only figure{margin:0}.analysis-original-img{image-rendering:pixelated;max-width:100%;height:auto}
