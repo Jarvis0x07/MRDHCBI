@@ -23,24 +23,26 @@
       <div>
         <p class="course-kicker">IT429 · NUMBER THEORY AND CRYPTOGRAPHY · COURSE PROJECT</p>
         <h1>Multi-Party Reversible Data Hiding in Ciphertext Binary Images</h1>
-        <p class="lead">An experimental implementation of multi-party reversible data hiding, visual cryptography, and our Hamming-code based embedding method.</p>
+        <p class="lead">
+          Implementation and experimental evaluation of multi-party reversible data hiding in ciphertext binary images using visual cryptography and Hamming-syndrome based embedding.
+        </p>
         <div class="project-meta"><span>Guided by <a class="faculty-link" href="https://infotech.nitk.ac.in/faculty/jaidhar-c-d" target="_blank" rel="noopener">Jaidhar C D ↗</a></span><span>National Institute of Technology Karnataka</span></div>
       </div>
       <div class="role-grid">
         <button class="role-card" data-role="sender">
           <span class="role-icon">↑</span>
           <strong>Sender</strong>
-          <small>Embed the document and transmit the marked shares.</small>
+          <small>Prepare the image, embed the document, and transmit the marked shares.</small>
         </button>
         <button class="role-card" data-role="receiver">
           <span class="role-icon">↓</span>
           <strong>Receiver</strong>
-          <small>Receive, extract, restore, and verify the transaction.</small>
+          <small>Receive the shares, extract the document, and reconstruct the image.</small>
         </button>
         <button class="role-card" data-role="analysis">
           <span class="role-icon">◈</span>
           <strong>Analysis</strong>
-          <small>Compare the paper, base MRDHCBI, and our Hamming-syndrome approach.</small>
+          <small>Run experiments comparing the implemented methods.</small>
         </button>
       </div>
       <div class="team-heading"><span>PROJECT TEAM</span><i></i></div>
@@ -73,7 +75,7 @@
 
     <section id="senderPanel" class="hidden">
       <div class="panel-head">
-        <div><p class="eyebrow">SENDER</p><h2>Prepare a transaction</h2></div>
+        <div><p class="eyebrow">SENDER</p><h2>Prepare data</h2></div>
         <div class="connected-badge">● Paired</div>
       </div>
       <div class="input-grid">
@@ -97,7 +99,7 @@
           <div class="slider-line"><input id="corruption" type="range" min="0" max="20" step="0.5" value="0"><b id="corruptionValue">0%</b></div>
           <span class="hint">Random bit flips are applied to marked shares before transfer.</span>
         </div>
-        <button class="primary" id="sendBtn" disabled>Embed & send</button>
+        <button class="primary" id="sendBtn" disabled>Embed and send</button>
       </div>
       <div id="senderLog" class="log"></div>
     </section>
@@ -110,14 +112,14 @@
       <div class="receiver-wait" id="receiverWait">
         <div class="spinner"></div>
         <h3>Waiting for sender</h3>
-        <p>The receiver is ready. The sender can now choose the image and document.</p>
+        <p>aiting for the sender to prepare the image and document.</p>
       </div>
       <div id="receiverResult" class="hidden"></div>
     </section>
 
     <section id="dashboard" class="hidden">
       <div class="panel-head">
-        <div><p class="eyebrow">TRANSACTION DASHBOARD</p><h2>Base method vs proposed method</h2></div>
+        <div><p class="eyebrow">TRANSACTION DASHBOARD</p><h2>Base method and proposed method</h2></div>
         <button class="ghost" id="newTxBtn">New transaction</button>
       </div>
       <div id="summaryCards" class="metric-grid"></div>
