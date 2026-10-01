@@ -34,8 +34,6 @@ document.querySelectorAll('.role-card').forEach(btn=>btn.onclick=()=>{
   show('landing',false); show('pairing'); $('pairState').textContent=`Role: ${role}`;
 });
 $('analysisBackBtn').onclick=()=>{ show('analysisPanel',false); show('landing',true); role=null; };
-$('analysisMetric').onchange=renderAnalysis;
-$('analysisImage').onchange=renderAnalysis;
 $('backBtn').onclick=()=>{if(peer)peer.destroy();peer=null;conn=null;show('pairing',false);show('landing');status('Offline')};
 $('corruption').oninput=e=>$('corruptionValue').textContent=e.target.value+'%';
 $('imageInput').onchange=async e=>{
@@ -284,7 +282,8 @@ function renderDashboard(meta,who){
 
 const PAPER_IMAGES=['Cartoon','CAD','Texture','Mask','Pattern','Document'];
 const PAPER_FILES={Cartoon:'183.bmp',CAD:'487.bmp',Texture:'760.bmp',Mask:'1001.bmp',Pattern:'1704.bmp',Document:'3060.bmp'};
-const METHODS=['Ren et al. [12]','Li et al. [13]','Zhang et al. [14]','Paper presented'];
+const METHODS=['Ren et al. [12]','Li et al. [13]','Zhang et al. [14]','Base MRDHCBI (paper)','Our Hamming'];
+// Fig. 3 values are read from the paper; Table I values are transcribed exactly.
 const PAPER_EMBED={
   Cartoon:[0.42,0.43,0.39,0.50], CAD:[0.24,0.25,0.22,0.50], Texture:[0.17,0.19,0.15,0.50],
   Mask:[0.80,0.83,0.85,0.50], Pattern:[0.30,0.31,0.24,0.50], Document:[0.46,0.46,0.41,0.50]
@@ -295,161 +294,116 @@ const PAPER_RUNTIME={
   Pattern:[71.3982,73.0493,59.5149,60.6579], Document:[71.1297,71.1876,55.3301,60.8692]
 };
 const FUNCTIONAL=[
-  ['Embedding space','Correlation','Correlation','Correlation','Encryption'],
-  ['Preprocessing','Yes','Yes','Yes','No'],
-  ['Encryption','Stream cipher','Stream cipher','Stream cipher','Visual cryptography'],
-  ['Data hider','Single','Single','Single','Multiple']
+  ['Embedding space','Correlation','Correlation','Correlation','Encryption','Hamming syndrome / VC'],
+  ['Preprocessing','Yes','Yes','Yes','No','No'],
+  ['Encryption','Stream cipher','Stream cipher','Stream cipher','Visual cryptography','Visual cryptography'],
+  ['Data hider','Single','Single','Single','Multiple','Multiple'],
+  ['Lossless recovery','Required','Required','Required','Yes (k-of-n)','Yes (k-of-n)']
 ];
-function methodLabels(){return ['Ren [12]','Li [13]','Zhang [14]','Paper'];}
-function makeAnalysisThumb(type){
-  const c=document.createElement('canvas'); c.width=256;c.height=180; const x=c.getContext('2d');
-  x.fillStyle='#080d16';x.fillRect(0,0,256,180);x.fillStyle='#f1f5f9';
-  if(type==='Cartoon'){
-    x.beginPath();x.arc(128,88,62,0,Math.PI*2);x.fill();x.fillStyle='#080d16';x.fillRect(91,68,18,18);x.fillRect(147,68,18,18);x.fillRect(110,119,36,6);
-  } else if(type==='CAD'){
-    x.strokeStyle='#f1f5f9';x.lineWidth=5;x.strokeRect(42,30,172,120);x.beginPath();x.moveTo(42,120);x.lineTo(100,60);x.lineTo(145,125);x.lineTo(190,55);x.stroke();
-  } else if(type==='Texture'){
-    for(let yy=0;yy<180;yy+=8)for(let xx=0;xx<256;xx+=8)if(((xx*17+yy*31)%23)<11)x.fillRect(xx,yy,5,5);
-  } else if(type==='Mask'){
-    x.beginPath();x.arc(128,88,70,0,Math.PI*2);x.fill();x.fillStyle='#080d16';x.beginPath();x.ellipse(102,84,16,9,0,0,Math.PI*2);x.ellipse(154,84,16,9,0,0,Math.PI*2);x.fill();x.fillRect(110,115,36,7);
-  } else if(type==='Pattern'){
-    for(let y=20;y<170;y+=30)for(let xx=20;xx<250;xx+=30){x.fillRect(xx,y,16,16);x.clearRect(xx+4,y+4,8,8)}
-  } else {
-    x.font='bold 15px monospace';let lines=['DOCUMENT','REVERSIBLE','DATA HIDING','BINARY IMAGE'];lines.forEach((t,i)=>x.fillText(t,34,45+i*32));
-  }
-  return c.toDataURL();
-}
-function bestText(values,lower=false){
+
+function methodName(i){return METHODS[i]}
+function methodBest(values,lower=false){
   const idx=lower?values.indexOf(Math.min(...values)):values.indexOf(Math.max(...values));
-  return `${methodLabels()[idx]} • ${values[idx].toFixed(2)}`;
+  return `${METHODS[idx]} • ${values[idx].toFixed(2)}`;
 }
-function renderAnalysis(){
-  const metric=$('analysisMetric').value, selected=$('analysisImage').value;
-  const images=selected==='all'?PAPER_IMAGES:[selected];
-  $('analysisImages').innerHTML=images.map(t=>`<div class="analysis-image-card"><img src="${makeAnalysisThumb(t)}" alt="${t} representative binary preview"><b>${t}</b><span>${PAPER_FILES[t]} • 256×256 paper test image</span></div>`).join('');
-  const embedAll=PAPER_IMAGES.flatMap(t=>PAPER_EMBED[t]);
-  const runtimeAll=PAPER_IMAGES.flatMap(t=>PAPER_RUNTIME[t]);
-  const paperAvgEmbed=embedAll.reduce((a,b)=>a+b,0)/embedAll.length;
-  const paperAvgRuntime=runtimeAll.reduce((a,b)=>a+b,0)/runtimeAll.length;
-  const proposedRuntime=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]);
-  const runtimeRange=Math.max(...proposedRuntime)-Math.min(...proposedRuntime);
-  const embedRange=0.50-0.50;
+
+// The supplied project does not contain the six original BMP files.  To keep Analysis
+// completely automatic (no upload/key), these are deterministic binary category replicas.
+// The literature values remain the paper's reported values; our/base results are executed live.
+function categoryBits(type,w=128,h=128){
+  const b=new Uint8Array(w*h);
+  const set=(x,y,v=1)=>{if(x>=0&&x<w&&y>=0&&y<h)b[y*w+x]=v};
+  if(type==='Cartoon'){
+    const cx=w/2,cy=h/2,r=43;
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){const d=Math.hypot(x-cx,y-cy);if(d<r)set(x,y);}
+    for(let y=46;y<60;y++)for(let x=43;x<56;x++)set(x,y,0); for(let y=46;y<60;y++)for(let x=72;x<85;x++)set(x,y,0);
+    for(let y=82;y<87;y++)for(let x=52;x<76;x++)set(x,y,0);
+  } else if(type==='CAD'){
+    for(let x=16;x<112;x++){set(x,18);set(x,109)} for(let y=18;y<110;y++){set(16,y);set(111,y)}
+    for(let t=0;t<96;t++){set(16+t,109-t);set(16+t,18+Math.floor(t*.45));}
+    for(let x=25;x<103;x+=13)for(let y=28;y<100;y+=13)for(let d=0;d<3;d++){set(x+d,y);set(x,y+d)}
+  } else if(type==='Texture'){
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(((x*37+y*61+x*y)%17)<8)set(x,y);
+  } else if(type==='Mask'){
+    const cx=w/2,cy=h/2;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const dx=(x-cx)/45,dy=(y-cy)/52;if(dx*dx+dy*dy<1)set(x,y);}
+    for(let y=48;y<59;y++)for(let x=43;x<57;x++)set(x,y,0);for(let y=48;y<59;y++)for(let x=71;x<85;x++)set(x,y,0);
+  } else if(type==='Pattern'){
+    for(let y=8;y<h;y+=24)for(let x=8;x<w;x+=24){for(let d=0;d<15;d++){set(x+d,y+d);set(x+14-d,y+d);}}
+  } else {
+    // document-like text lines
+    for(let y=16;y<116;y+=14){let len=(y%28===16)?90:78;for(let x=18;x<18+len;x++){if(((x*13+y*7)%19)<13)set(x,y);}}
+    for(let y=20;y<112;y+=28)for(let x=18;x<36;x+=3)set(x,y,1);
+  }
+  return b;
+}
+function bitsCanvas(bits,w,h,scale=1){return binaryToCanvas(bits,w,h,scale).toDataURL()}
+function makeCategoryCard(type){
+  const bits=categoryBits(type); const w=128,h=128;
+  const shares=vcEncrypt(bits,w,h,1000+PAPER_IMAGES.indexOf(type));
+  const basePayload=new Uint8Array(w*h);for(let i=0;i<basePayload.length;i++)basePayload[i]=(i*17+PAPER_IMAGES.indexOf(type))%2;
+  const baseMarked=baseEmbed(shares[0],basePayload,w,h);
+  const hamPayload=new Uint8Array(w*h*3);for(let i=0;i<hamPayload.length;i++)hamPayload[i]=(i*31+7)%2;
+  const hamMarked=syndromeEmbed(shares[0],hamPayload,w,h);
+  return `<div class="analysis-experiment-card">
+    <div class="analysis-experiment-head"><b>${type}</b><span>${PAPER_FILES[type]} • paper category</span></div>
+    <div class="analysis-thumb-grid">
+      <figure><img src="${bitsCanvas(bits,w,h,1)}"><figcaption>Original</figcaption></figure>
+      <figure><img src="${bitsCanvas(baseMarked, w*3,h,1)}"><figcaption>Base MRDHCBI<br>1 bpp</figcaption></figure>
+      <figure><img src="${bitsCanvas(hamMarked,w*7,h,1)}"><figcaption>Our Hamming<br>3 bpp</figcaption></figure>
+    </div>
+    <div class="analysis-experiment-stats"><span>Base payload: ${(w*h/8/1024).toFixed(2)} KB</span><span>Hamming payload: ${(w*h*3/8/1024).toFixed(2)} KB</span><span>Shares: 3</span></div>
+  </div>`;
+}
+async function runUnifiedOurMethod(){
+  const results={};
+  for(const type of PAPER_IMAGES){
+    const w=128,h=128,bits=categoryBits(type),N=w*h;
+    const payload=new Uint8Array(N*3);for(let i=0;i<payload.length;i++)payload[i]=(i*31+7)%2;
+    const t0=performance.now();const shares=vcEncrypt(bits,w,h,1000+PAPER_IMAGES.indexOf(type));const enc=performance.now()-t0;
+    const t1=performance.now();const marked=shares.map(s=>syndromeEmbed(s,payload,w,h));const embed=performance.now()-t1;
+    const t2=performance.now();const restored=marked.map(s=>syndromeExtractRestore(s,w,h));const rec=vcRecover(restored[0].restored,restored[1].restored,w,h);const ext=performance.now()-t2;
+    let exact=0;for(let i=0;i<N;i++)if(rec[i]===bits[i])exact++;
+    let pexact=0;for(let i=0;i<payload.length;i++)if(restored[0].payload[i]===payload[i])pexact++;
+    results[type]={bpp:3,stored:7,encryptionMs:enc,embeddingMs:embed,extractionMs:ext,totalMs:enc+embed+ext,imageRecovery:exact/N*100,payloadRecovery:pexact/payload.length*100,exactImage:exact===N,exactPayload:pexact===payload.length};
+  }
+  return results;
+}
+async function renderUnifiedAnalysis(){
+  $('analysisImages').innerHTML=PAPER_IMAGES.map(makeCategoryCard).join('');
   $('analysisSummary').innerHTML=`
-    <div class="metric"><span>Paper test images</span><b>6</b><small>all six categories</small></div>
-    <div class="metric"><span>Paper embedding rate</span><b>${paperAvgEmbed.toFixed(3)} bpp</b><small>mean of reported methods</small></div>
-    <div class="metric"><span>Paper runtime</span><b>${paperAvgRuntime.toFixed(2)} ms</b><small>mean across all methods/images</small></div>
-    <div class="metric"><span>Our prototype</span><b>3 bpp</b><small>Hamming-syndrome payload / source pixel</small></div>`;
-
-  const labels=images;
-  const chartData=images.map(t=>metric==='runtime'?PAPER_RUNTIME[t]:PAPER_EMBED[t]);
-  const isRuntime=metric==='runtime';
-  $('analysisChartTitle').textContent=isRuntime?'Encryption runtime reported in the paper (lower is better)':'Embedding rate reported in the paper (higher is better)';
+    <div class="metric"><span>Test categories</span><b>6</b><small>same six categories named by the paper</small></div>
+    <div class="metric"><span>Base MRDHCBI</span><b>1.00 bpp</b><small>paper method</small></div>
+    <div class="metric"><span>Our Hamming</span><b>3.00 bpp</b><small>3 payload bits / source pixel</small></div>
+    <div class="metric"><span>Recovery target</span><b>100%</b><small>exact reversible recovery</small></div>`;
+  const our=await runUnifiedOurMethod();
+  const ourEmbed=PAPER_IMAGES.map(()=>3);
+  const ourRuntime=PAPER_IMAGES.map(t=>our[t].totalMs);
+  const baseEmbed=PAPER_IMAGES.map(()=>1);
+  const baseRuntime=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]);
   analysisCharts.forEach(c=>c.destroy());analysisCharts=[];
-  analysisCharts.push(new Chart($('analysisMainChart'),{type:'bar',data:{labels,datasets:METHODS.map((m,i)=>({label:m,data:chartData.map(v=>v[i])}))},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:isRuntime?'milliseconds':'bits per pixel'}}}}}));
-  analysisCharts.push(new Chart($('analysisRuntimeChart'),{type:'line',data:{labels:PAPER_IMAGES,datasets:METHODS.map((m,i)=>({label:m,data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][i]),tension:.2}))},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}}));
-  const stability=PAPER_IMAGES.map(t=>PAPER_EMBED[t]);
-  const ranges=METHODS.map((m,i)=>Math.max(...stability.map(v=>v[i]))-Math.min(...stability.map(v=>v[i])));
-  analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:methodLabels(),datasets:[{label:'Embedding-rate range across six images (lower = more stable)',data:ranges}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
-  analysisCharts.push(new Chart($('analysisPrototypeChart'),{type:'bar',data:{labels:['Base MRDHCBI','Our Hamming syndrome'],datasets:[{label:'Payload bpp',data:[1,3]},{label:'Stored bits / source pixel / share',data:[3,7]}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}}));
-
-  $('analysisTable').innerHTML=`<table class="details"><tr><th>Image</th><th>Ren [12] bpp</th><th>Li [13] bpp</th><th>Zhang [14] bpp</th><th>Paper</th><th>Best reported bpp</th></tr>${PAPER_IMAGES.map(t=>{const v=PAPER_EMBED[t];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td><b>${Math.max(...v).toFixed(2)}</b> • ${methodLabels()[v.indexOf(Math.max(...v))]}</td></tr>`}).join('')}</table><br><table class="details"><tr><th>Image</th><th>Ren ms</th><th>Li ms</th><th>Zhang ms</th><th>Paper ms</th><th>Lowest runtime</th></tr>${PAPER_IMAGES.map(t=>{const v=PAPER_RUNTIME[t];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(4)}</td>`).join('')}<td><b>${Math.min(...v).toFixed(4)}</b> • ${methodLabels()[v.indexOf(Math.min(...v))]}</td></tr>`}).join('')}</table>`;
-  $('functionalTable').innerHTML=`<table class="details"><tr><th>Function</th><th>Ren [12]</th><th>Li [13]</th><th>Zhang [14]</th><th>Paper presented</th></tr>${FUNCTIONAL.map(r=>`<tr>${r.map((x,j)=>j===0?`<th>${x}</th>`:`<td>${x}</td>`).join('')}</tr>`).join('')}</table>`;
-  const runtimeRanges=METHODS.map((m,i)=>{const a=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][i]);return Math.max(...a)-Math.min(...a)});
-  const runtimeMeans=METHODS.map((m,i)=>PAPER_IMAGES.reduce((a,t)=>a+PAPER_RUNTIME[t][i],0)/PAPER_IMAGES.length);
-  $('derivedTable').innerHTML=`<table class="details"><tr><th>Derived metric</th><th>Ren [12]</th><th>Li [13]</th><th>Zhang [14]</th><th>Paper presented</th></tr><tr><td>Mean embedding rate (bpp)</td>${METHODS.map((m,i)=>`<td>${(PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][i],0)/6).toFixed(3)}</td>`).join('')}</tr><tr><td>Embedding-rate range (lower = more stable)</td>${ranges.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}</tr><tr><td>Mean encryption runtime (ms)</td>${runtimeMeans.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}</tr><tr><td>Runtime range (lower = more stable)</td>${runtimeRanges.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}</tr></table>
-      <p class="hint analysis-footnote">Paper-derived values are transcribed from Fig. 3 and Table I. The representative thumbnails are category illustrations; the exact six BMP files named by the paper are not included in the current project ZIP. No unreported experimental result is presented as a paper result.</p>`;
+  analysisCharts.push(new Chart($('analysisMainChart'),{type:'bar',data:{labels:PAPER_IMAGES,datasets:[
+    {label:'Ren [12] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][0])},{label:'Li [13] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][1])},{label:'Zhang [14] (paper)',data:PAPER_IMAGES.map(t=>PAPER_EMBED[t][2])},{label:'Base MRDHCBI (paper)',data:baseEmbed},{label:'Our Hamming (implemented)',data:ourEmbed}
+  ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Embedding rate (bpp)'}}}}}));
+  analysisCharts.push(new Chart($('analysisRuntimeChart'),{type:'bar',data:{labels:PAPER_IMAGES,datasets:[
+    {label:'Ren [12]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][0])},{label:'Li [13]',data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][1])},{label:'Zhang [14]',data:PAPER_RUNTIME[t][2]},{label:'Base MRDHCBI',data:baseRuntime},{label:'Our Hamming — browser run',data:ourRuntime}
+  ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:'Runtime (ms)'}}}}}));
+  const embedRanges=[...Array(3)].map(i=>{const v=PAPER_IMAGES.map(t=>PAPER_EMBED[t][i]);return Math.max(...v)-Math.min(...v)}).concat(0,0);
+  analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:METHODS,datasets:[{label:'Embedding-rate range across six categories (lower = more stable)',data:embedRanges}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+  analysisCharts.push(new Chart($('analysisPrototypeChart'),{type:'bar',data:{labels:METHODS,datasets:[{label:'Payload density (bpp)',data:[...PAPER_IMAGES.map(()=>0),1,3]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+  $('analysisChartTitle').textContent='Embedding rate — all methods on the same six paper categories';
+  $('analysisTable').innerHTML=`<table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}<th>Best bpp</th></tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_EMBED[t],3];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td>${Math.max(...v).toFixed(2)} • ${METHODS[v.indexOf(Math.max(...v))]}</td></tr>`}).join('')}</table>
+  <br><table class="details"><tr><th>Image</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}</tr>${PAPER_IMAGES.map(t=>{const v=[...PAPER_RUNTIME[t],our[t].totalMs];return `<tr><td>${t}</td>${v.map((x,i)=>`<td>${x.toFixed(3)}${i===4?'*':''}</td>`).join('')}</tr>`}).join('')}</table>`;
+  $('functionalTable').innerHTML=`<table class="details"><tr><th>Function</th>${METHODS.map(m=>`<th>${m}</th>`).join('')}</tr>${FUNCTIONAL.map(r=>`<tr><td>${r[0]}</td>${r.slice(1).map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table>`;
+  const avgOurRuntime=ourRuntime.reduce((a,b)=>a+b,0)/ourRuntime.length;
+  $('derivedTable').innerHTML=`<table class="details"><tr><th>Metric</th><th>Base MRDHCBI</th><th>Our Hamming</th><th>Interpretation</th></tr>
+  <tr><td>Payload density</td><td>1.00 bpp</td><td>3.00 bpp</td><td>Higher payload density for our method</td></tr>
+  <tr><td>Stored bits / source pixel / share</td><td>3</td><td>7</td><td>Our method trades storage expansion for capacity</td></tr>
+  <tr><td>Storage expansion</td><td>3×</td><td>7×</td><td>Lower is preferable when capacity is held constant</td></tr>
+  <tr><td>Exact image recovery</td><td>100% by design</td><td>${PAPER_IMAGES.every(t=>our[t].exactImage)?'100%':'Measured below 100%'}</td><td>Measured on the six automatic category replicas</td></tr>
+  <tr><td>Exact payload recovery</td><td>100% under valid channel</td><td>${PAPER_IMAGES.every(t=>our[t].exactPayload)?'100%':'Measured below 100%'}</td><td>Measured on the three-bit payload</td></tr>
+  <tr><td>Our mean browser runtime</td><td>Paper reported: ${(PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]).reduce((a,b)=>a+b,0)/6).toFixed(3)} ms</td><td>${avgOurRuntime.toFixed(3)} ms*</td><td>*Different runtime environment; not a fair hardware-normalized comparison</td></tr></table>
+  <p class="hint analysis-footnote">Paper values are reported/transcribed from Fig. 3 and Table I. Ren/Li/Zhang are not reimplemented in this browser; their values are literature results. Base MRDHCBI uses the paper's 1 bpp design. Our Hamming method is executed automatically on deterministic binary replicas of the six paper categories because the exact six BMP files are not contained in the supplied project. No pairing key or user-uploaded image is required.</p>`;
+  $('analysisPanel').scrollIntoView({behavior:'smooth'});
 }
-
+function renderAnalysis(){renderUnifiedAnalysis().catch(e=>{console.error(e);$('analysisSummary').innerHTML=`<div class="metric"><span>Analysis error</span><b>See console</b><small>${escapeHtml(e.message)}</small></div>`});}
 $('newTxBtn').onclick=()=>location.reload();
-
-// Live benchmark for the user's proposed Hamming-syndrome method.
-async function runHammingBenchmark(){
-  const input=$('analysisBenchmarkInput');
-  if(!input || !input.files[0]){alert('Choose a binary/grayscale test image first.');return;}
-  const btn=$('runHammingBenchmark');
-  btn.disabled=true;
-  $('hammingBenchmarkStatus').textContent='Running the actual Hamming-syndrome pipeline…';
-  try{
-    const image=await loadBinaryImage(input.files[0]);
-    const N=image.width*image.height;
-    // Deterministic 3-bit payload per source pixel, so payload recovery can be measured exactly.
-    const payload=new Uint8Array(N*3);
-    for(let i=0;i<payload.length;i++) payload[i]=((i*1103515245+12345)>>>16)&1;
-
-    const t0=performance.now();
-    const shares=vcEncrypt(image.bits,image.width,image.height,2026);
-    const t1=performance.now();
-    const marked=shares.map(s=>syndromeEmbed(s,payload,image.width,image.height));
-    const t2=performance.now();
-    const extracted=marked.map(s=>syndromeExtractRestore(s,image.width,image.height));
-    const recovered=vcRecover(extracted[0].restored,extracted[1].restored,image.width,image.height);
-    const t3=performance.now();
-
-    const payloadPct=byteAccuracy(payload,extracted[0].payload);
-    const imagePct=imageAccuracy(recovered,image.bits);
-    const perShareBits=marked[0].length;
-    const totalStoredBits=perShareBits*3;
-    const basePerShareBits=N*3;
-    const metrics={
-      image:`${image.width} × ${image.height}`,
-      pixels:N,
-      capacity:3,
-      perShareStored:7,
-      totalStoredPerPixel:21,
-      storageExpansion:totalStoredBits/N,
-      encryptionMs:t1-t0,
-      embeddingMs:t2-t1,
-      extractionRecoveryMs:t3-t2,
-      totalMs:t3-t0,
-      imageRecovery:imagePct,
-      imageExact:sameBits(recovered,image.bits),
-      payloadRecovery:payloadPct,
-      payloadExact:sameBits(extracted[0].payload,payload),
-      correctedErrors:extracted.reduce((a,x)=>a+x.correctedCodeErrors,0)
-    };
-
-    $('hammingBenchmarkSummary').innerHTML=`
-      <div class="metric"><span>Embedding capacity</span><b>3.00 bpp</b><small>3 payload bits / source pixel</small></div>
-      <div class="metric"><span>Stored per share</span><b>7.00 bits/px</b><small>Hamming(7,4)</small></div>
-      <div class="metric"><span>Image recovery</span><b>${metrics.imageRecovery.toFixed(2)}%</b><small>${metrics.imageExact?'exact':'not exact'}</small></div>
-      <div class="metric"><span>Payload recovery</span><b>${metrics.payloadRecovery.toFixed(2)}%</b><small>${metrics.payloadExact?'exact':'not exact'}</small></div>
-      <div class="metric"><span>Total runtime</span><b>${metrics.totalMs.toFixed(2)} ms</b><small>encryption + embed + extraction/recovery</small></div>
-      <div class="metric"><span>Total storage</span><b>${metrics.storageExpansion.toFixed(1)}×</b><small>across 3 marked shares vs source pixels</small></div>`;
-
-    if(window.__hammingRuntimeChart)window.__hammingRuntimeChart.destroy();
-    window.__hammingRuntimeChart=new Chart($('hammingRuntimeChart'),{type:'bar',data:{labels:['VC encryption','Hamming embedding','Extraction + recovery','Total'],datasets:[{label:'Runtime (ms)',data:[metrics.encryptionMs,metrics.embeddingMs,metrics.extractionRecoveryMs,metrics.totalMs]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
-
-    const corruptionLevels=[0,1,2,5,10];
-    const imgScores=[],payloadScores=[];
-    for(let ci=0;ci<corruptionLevels.length;ci++){
-      const pct=corruptionLevels[ci];
-      const tx=marked.map((s,i)=>pct?corruptBits(s,pct,9000+i):s);
-      const ex=tx.map(s=>syndromeExtractRestore(s,image.width,image.height));
-      const rec=vcRecover(ex[0].restored,ex[1].restored,image.width,image.height);
-      imgScores.push(imageAccuracy(rec,image.bits));
-      payloadScores.push(byteAccuracy(payload,ex[0].payload));
-    }
-    if(window.__hammingCorruptionChart)window.__hammingCorruptionChart.destroy();
-    window.__hammingCorruptionChart=new Chart($('hammingCorruptionChart'),{type:'line',data:{labels:corruptionLevels.map(x=>x+'%'),datasets:[{label:'Image recovery %',data:imgScores,tension:.2},{label:'Payload recovery %',data:payloadScores,tension:.2}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{min:0,max:100}}}});
-
-    $('hammingBenchmarkTable').innerHTML=`<table class="details"><tr><th>Metric</th><th>Measured result</th><th>Interpretation</th></tr>
-      <tr><td>Image</td><td>${escapeHtml(input.files[0].name)} (${metrics.image})</td><td>Actual uploaded test image</td></tr>
-      <tr><td>Payload capacity</td><td>3 bpp</td><td>3 payload bits per original image pixel</td></tr>
-      <tr><td>Marked share width</td><td>7× original width</td><td>Hamming(7,4) codeword per 3-bit VC block</td></tr>
-      <tr><td>Storage expansion</td><td>${metrics.storageExpansion.toFixed(1)}×</td><td>Three 7-bit shares per source pixel</td></tr>
-      <tr><td>Image recovery</td><td>${metrics.imageRecovery.toFixed(4)}% (${metrics.imageExact?'exact':'not exact'})</td><td>Recovered from two restored shares</td></tr>
-      <tr><td>Payload recovery</td><td>${metrics.payloadRecovery.toFixed(4)}% (${metrics.payloadExact?'exact':'not exact'})</td><td>Compared with deterministic 3-bit/pixel payload</td></tr>
-      <tr><td>Encryption time</td><td>${metrics.encryptionMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
-      <tr><td>Embedding time</td><td>${metrics.embeddingMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
-      <tr><td>Extraction + recovery</td><td>${metrics.extractionRecoveryMs.toFixed(4)} ms</td><td>Browser runtime</td></tr>
-      <tr><td>Corrected Hamming errors</td><td>${metrics.correctedErrors}</td><td>At 0% corruption, expected to be zero</td></tr>
-    </table>`;
-    $('hammingBenchmarkStatus').textContent=`Benchmark complete for ${input.files[0].name}. These values were measured by running your Hamming-syndrome implementation in this browser; they are not paper-reported values.`;
-  }catch(e){
-    console.error(e);
-    $('hammingBenchmarkStatus').textContent='Benchmark failed: '+e.message;
-    alert('Hamming benchmark failed: '+e.message);
-  }finally{btn.disabled=false;}
-}
-
-if($('runHammingBenchmark'))$('runHammingBenchmark').onclick=runHammingBenchmark;
