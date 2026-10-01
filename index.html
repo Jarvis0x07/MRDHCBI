@@ -133,6 +133,24 @@
         The literature values below are the paper's reported results for Ren et al. [12], Li et al. [13], Zhang et al. [14], and the paper's Presented approach.
         Your current Hamming-syndrome prototype is shown separately where its engineering metrics are directly comparable.
       </div>
+      <div class="panel analysis-benchmark-panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">OUR METHOD • LIVE BENCHMARK</p><h3>Hamming-syndrome implementation</h3></div>
+        </div>
+        <p class="hint">Select a binary/grayscale image to run the actual proposed Hamming-syndrome pipeline in the browser. This benchmark is independent of the Sender/Receiver pairing key.</p>
+        <div class="analysis-benchmark-controls">
+          <label>Test image<input id="analysisBenchmarkInput" type="file" accept="image/png,image/bmp,image/jpeg"></label>
+          <button class="primary" id="runHammingBenchmark">Run Hamming benchmark</button>
+        </div>
+        <div id="hammingBenchmarkStatus" class="hint">No benchmark run yet.</div>
+        <div id="hammingBenchmarkSummary" class="metric-grid"></div>
+        <div class="chart-grid">
+          <div class="chart-card"><h3>Pipeline runtime</h3><canvas id="hammingRuntimeChart"></canvas></div>
+          <div class="chart-card"><h3>Corruption sweep</h3><canvas id="hammingCorruptionChart"></canvas></div>
+        </div>
+        <div id="hammingBenchmarkTable"></div>
+      </div>
+
       <div class="analysis-controls">
         <label>Metric view<select id="analysisMetric">
           <option value="embedding">Embedding rate</option>
