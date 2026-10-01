@@ -6,7 +6,7 @@ const B0 = [[1,1,0],[1,1,0],[1,1,0]];
 const B1 = [[1,1,0],[1,0,1],[0,1,1]];
 const PERMS = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
 
-export function loadBinaryImage(file){
+function loadBinaryImage(file){
   return new Promise((resolve,reject)=>{
     const img=new Image();
     img.onload=()=>{
@@ -27,7 +27,7 @@ export function loadBinaryImage(file){
   });
 }
 
-export function binaryToCanvas(bits,w,h,scale=1){
+function binaryToCanvas(bits,w,h,scale=1){
   const c=document.createElement('canvas');c.width=w*scale;c.height=h*scale;
   const ctx=c.getContext('2d');
   const im=ctx.createImageData(w,h);
@@ -44,14 +44,14 @@ export function binaryToCanvas(bits,w,h,scale=1){
   return c;
 }
 
-export function canvasToBlob(canvas){return new Promise(r=>canvas.toBlob(r,'image/png'));}
+function canvasToBlob(canvas){return new Promise(r=>canvas.toBlob(r,'image/png'));}
 
 function rng32(seed){
   let x=(seed>>>0)||0xA341316C;
   return ()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return (x>>>0)/4294967296;};
 }
 
-export function vcEncrypt(original,w,h,seed=2026){
+function vcEncrypt(original,w,h,seed=2026){
   const shares=[new Uint8Array(h*3*w),new Uint8Array(h*3*w),new Uint8Array(h*3*w)];
   const rnd=rng32(seed);
   for(let p=0;p<w*h;p++){
@@ -67,7 +67,7 @@ export function vcEncrypt(original,w,h,seed=2026){
   return shares;
 }
 
-export function restoreBaseShare(marked,w,h){
+function restoreBaseShare(marked,w,h){
   const out=new Uint8Array(marked.length);
   for(let p=0;p<w*h;p++){
     const off=(Math.floor(p/w)*3*w)+(p%w)*3;
@@ -79,7 +79,7 @@ export function restoreBaseShare(marked,w,h){
   return out;
 }
 
-export function baseEmbed(share,payloadBits,w,h){
+function baseEmbed(share,payloadBits,w,h){
   const out=share.slice();
   for(let p=0;p<w*h;p++){
     const off=(Math.floor(p/w)*3*w)+(p%w)*3;
@@ -87,7 +87,7 @@ export function baseEmbed(share,payloadBits,w,h){
   }
   return out;
 }
-export function baseExtract(marked,w,h){
+function baseExtract(marked,w,h){
   const payload=new Uint8Array(w*h);
   for(let p=0;p<w*h;p++){
     const off=(Math.floor(p/w)*3*w)+(p%w)*3;
@@ -117,7 +117,7 @@ function correctHamming(c){
 // Hamming(7,4) is generated, then a 3-bit desired syndrome is encoded by
 // flipping the corresponding codeword position. The receiver reads the
 // syndrome, undoes that flip, and Hamming-decodes the original ciphertext.
-export function syndromeEmbed(share,payloadBits,w,h){
+function syndromeEmbed(share,payloadBits,w,h){
   const out=new Uint8Array(h*7*w);
   for(let p=0;p<w*h;p++){
     const y=Math.floor(p/w),x=p%w;
@@ -132,7 +132,7 @@ export function syndromeEmbed(share,payloadBits,w,h){
   return out;
 }
 
-export function syndromeExtractRestore(marked,w,h){
+function syndromeExtractRestore(marked,w,h){
   const restored=new Uint8Array(h*3*w);
   const payload=new Uint8Array(w*h*3);
   let correctedCodeErrors=0;
@@ -152,7 +152,7 @@ export function syndromeExtractRestore(marked,w,h){
   return {restored,payload,correctedCodeErrors};
 }
 
-export function vcRecover(shareA,shareB,w,h){
+function vcRecover(shareA,shareB,w,h){
   const rec=new Uint8Array(w*h);
   for(let p=0;p<w*h;p++){
     const y=Math.floor(p/w),x=p%w,off=y*3*w+x*3;
@@ -162,7 +162,7 @@ export function vcRecover(shareA,shareB,w,h){
   return rec;
 }
 
-export function corruptBits(data,percent,seed=98765){
+function corruptBits(data,percent,seed=98765){
   const out=data.slice(), n=Math.floor(out.length*percent/100);
   const rnd=rng32(seed);
   // Fisher-Yates partial sample without requiring a huge index array.
@@ -175,19 +175,19 @@ export function corruptBits(data,percent,seed=98765){
   return out;
 }
 
-export function bitsFromBytes(bytes){
+function bitsFromBytes(bytes){
   const out=new Uint8Array(bytes.length*8);
   for(let i=0;i<bytes.length;i++)for(let b=0;b<8;b++)out[i*8+b]=(bytes[i]>>(7-b))&1;
   return out;
 }
-export function bytesFromBits(bits){
+function bytesFromBits(bits){
   const n=Math.floor(bits.length/8),out=new Uint8Array(n);
   for(let i=0;i<n;i++){let v=0;for(let b=0;b<8;b++)v=(v<<1)|bits[i*8+b];out[i]=v;}
   return out;
 }
 
 async function sha256(data){return new Uint8Array(await crypto.subtle.digest('SHA-256',data));}
-export async function xorKeyBytes(bytes,key){
+async function xorKeyBytes(bytes,key){
   const out=new Uint8Array(bytes), keyBytes=new TextEncoder().encode(key);
   let offset=0,counter=0;
   while(offset<bytes.length){
@@ -198,7 +198,7 @@ export async function xorKeyBytes(bytes,key){
   return out;
 }
 
-export function crc32(bytes){
+function crc32(bytes){
   let crc=0xFFFFFFFF;
   for(const b of bytes){
     crc^=b;
@@ -211,7 +211,7 @@ function u32(v){return new Uint8Array([v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&2
 function read16(a,o){return a[o]|(a[o+1]<<8)}
 function read32(a,o){return (a[o]|(a[o+1]<<8)|(a[o+2]<<16)|(a[o+3]<<24))>>>0}
 
-export async function makePayload(file,key){
+async function makePayload(file,key){
   const name=new TextEncoder().encode(file.name);
   const mime=new TextEncoder().encode(file.type||'application/octet-stream');
   if(name.length>65535||mime.length>65535)throw new Error('File metadata is too long.');
@@ -223,7 +223,7 @@ export async function makePayload(file,key){
   return {encrypted:await xorKeyBytes(plain,key),plainBytes:plain.length};
 }
 
-export async function parsePayload(encrypted,key){
+async function parsePayload(encrypted,key){
   const plain=await xorKeyBytes(encrypted,key);
   if(plain.length<12)throw new Error('Recovered payload is too short.');
   const nl=read16(plain,0),ml=read16(plain,2),size=read32(plain,4),expected=read32(plain,8);
@@ -236,7 +236,7 @@ export async function parsePayload(encrypted,key){
   return {name,mime,body,expectedCrc:expected,actualCrc:actual,crcOk:actual===expected};
 }
 
-export function fitPayloadToBits(payloadBytes,capacityBits){
+function fitPayloadToBits(payloadBytes,capacityBits){
   const bits=bitsFromBytes(payloadBytes);
   if(bits.length>capacityBits)throw new Error(`Document is too large. Need ${Math.ceil(bits.length/8)} bytes but the selected image provides about ${Math.floor(capacityBits/8)} bytes.`);
   const padded=new Uint8Array(capacityBits);
@@ -244,7 +244,7 @@ export function fitPayloadToBits(payloadBytes,capacityBits){
   return padded;
 }
 
-export function sharePngBlob(bits,w,h,method='base'){
+function sharePngBlob(bits,w,h,method='base'){
   const width=method==='base'?3*w:7*w;
   const c=binaryToCanvas(bits,width,h,1);
   return canvasToBlob(c);
@@ -332,6 +332,6 @@ function executePredictionMethod(bits,w,h,{kind,N=4,T0=2,T1=2,seed=1}){
   return {bpp:capacity/(w*h),capacityBits:capacity,stored:1,auxBits:auxLen,encryptionMs,embeddingMs,extractionMs,totalMs:encryptionMs+embeddingMs+extractionMs,imageRecovery:accuracy(recovered,bits),payloadRecovery:accuracy(extracted,payload),exactImage:same(recovered,bits),exactPayload:same(extracted,payload)};
 }
 
-export function benchmarkRen(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'ren',N:4,seed:0x52454E});}
-export function benchmarkLi(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'li',N:4,T0:2,T1:2,seed:0x4C4954});}
-export function benchmarkZhang(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'zhang',N:4,seed:0x5A4847});}
+function benchmarkRen(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'ren',N:4,seed:0x52454E});}
+function benchmarkLi(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'li',N:4,T0:2,T1:2,seed:0x4C4954});}
+function benchmarkZhang(bits,w,h){return executePredictionMethod(bits,w,h,{kind:'zhang',N:4,seed:0x5A4847});}
