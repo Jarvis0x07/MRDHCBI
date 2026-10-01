@@ -125,66 +125,38 @@
 
     <section id="analysisPanel" class="hidden">
       <div class="panel-head">
-        <div><p class="eyebrow">PAPER-BASED EVALUATION</p><h2>Comparative Analysis</h2></div>
+        <div><p class="eyebrow">AUTOMATED EXPERIMENT • PAPER COMPARISON</p><h2>Comparative Analysis</h2></div>
         <button class="ghost" id="analysisBackBtn">← Back</button>
       </div>
       <div class="analysis-note">
-        <b>Evaluation set:</b> Cartoon, CAD, Texture, Mask, Pattern and Document — the six test categories used by the paper.
-        The literature values below are the paper's reported results for Ren et al. [12], Li et al. [13], Zhang et al. [14], and the paper's Presented approach.
-        Your current Hamming-syndrome prototype is shown separately where its engineering metrics are directly comparable.
-      </div>
-      <div class="panel analysis-benchmark-panel">
-        <div class="panel-head">
-          <div><p class="eyebrow">OUR METHOD • LIVE BENCHMARK</p><h3>Hamming-syndrome implementation</h3></div>
-        </div>
-        <p class="hint">Select a binary/grayscale image to run the actual proposed Hamming-syndrome pipeline in the browser. This benchmark is independent of the Sender/Receiver pairing key.</p>
-        <div class="analysis-benchmark-controls">
-          <label>Test image<input id="analysisBenchmarkInput" type="file" accept="image/png,image/bmp,image/jpeg"></label>
-          <button class="primary" id="runHammingBenchmark">Run Hamming benchmark</button>
-        </div>
-        <div id="hammingBenchmarkStatus" class="hint">No benchmark run yet.</div>
-        <div id="hammingBenchmarkSummary" class="metric-grid"></div>
-        <div class="chart-grid">
-          <div class="chart-card"><h3>Pipeline runtime</h3><canvas id="hammingRuntimeChart"></canvas></div>
-          <div class="chart-card"><h3>Corruption sweep</h3><canvas id="hammingCorruptionChart"></canvas></div>
-        </div>
-        <div id="hammingBenchmarkTable"></div>
+        <b>One-click evaluation.</b> Clicking Analysis automatically evaluates the same six paper categories — Cartoon, CAD, Texture, Mask, Pattern and Document — with the paper's three comparison methods, the base MRDHCBI method, and <b>our Hamming-code method</b>. No pairing key, sender/receiver connection, or image upload is required.
+        Literature values for Ren et al. [12], Li et al. [13], Zhang et al. [14] and the base paper are taken from the paper. Our Hamming pipeline is executed in-browser on deterministic binary replicas of those six categories because the exact BMP files named by the paper are not present in the supplied project.
       </div>
 
-      <div class="analysis-controls">
-        <label>Metric view<select id="analysisMetric">
-          <option value="embedding">Embedding rate</option>
-          <option value="runtime">Encryption runtime</option>
-          <option value="stability">Stability across image types</option>
-        </select></label>
-        <label>Image category<select id="analysisImage">
-          <option value="all">All six images</option>
-          <option value="Cartoon">Cartoon (183.bmp)</option>
-          <option value="CAD">CAD (487.bmp)</option>
-          <option value="Texture">Texture (760.bmp)</option>
-          <option value="Mask">Mask (1001.bmp)</option>
-          <option value="Pattern">Pattern (1704.bmp)</option>
-          <option value="Document">Document (3060.bmp)</option>
-        </select></label>
-      </div>
       <div id="analysisSummary" class="metric-grid"></div>
       <div class="analysis-images" id="analysisImages"></div>
-      <div class="chart-grid">
-        <div class="chart-card wide-chart"><h3 id="analysisChartTitle">Embedding rate across the six paper test images</h3><canvas id="analysisMainChart"></canvas></div>
-        <div class="chart-card"><h3>Encryption runtime by image</h3><canvas id="analysisRuntimeChart"></canvas></div>
-        <div class="chart-card"><h3>Embedding-rate stability</h3><canvas id="analysisStabilityChart"></canvas></div>
-        <div class="chart-card"><h3>Prototype capacity / storage</h3><canvas id="analysisPrototypeChart"></canvas></div>
-      </div>
+
       <div class="panel analysis-table-panel">
-        <h3>All reported values</h3>
+        <h3>Embedding experiment — all five methods</h3>
+        <p class="hint">The same category and payload-density comparison is shown for every method. The paper's reported methods are literature results; our Hamming value is 3 bpp by implementation.</p>
+        <div class="chart-grid">
+          <div class="chart-card wide-chart"><h3 id="analysisChartTitle">Embedding rate — all methods on the same six paper categories</h3><canvas id="analysisMainChart"></canvas></div>
+          <div class="chart-card"><h3>Encryption / processing runtime</h3><canvas id="analysisRuntimeChart"></canvas></div>
+          <div class="chart-card"><h3>Embedding-rate stability</h3><canvas id="analysisStabilityChart"></canvas></div>
+          <div class="chart-card"><h3>Payload density</h3><canvas id="analysisPrototypeChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="panel analysis-table-panel">
+        <h3>Numerical comparison</h3>
         <div id="analysisTable"></div>
       </div>
       <div class="panel analysis-table-panel">
-        <h3>Functional comparison from the paper</h3>
+        <h3>Functional comparison</h3>
         <div id="functionalTable"></div>
       </div>
       <div class="panel analysis-table-panel">
-        <h3>Extra derived metrics</h3>
+        <h3>Additional metrics — Base vs Our Hamming</h3>
         <div id="derivedTable"></div>
       </div>
     </section>
