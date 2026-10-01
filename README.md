@@ -1,175 +1,202 @@
-# MRDHCBI Web Demonstrator
+# Multi-Party Reversible Data Hiding in Ciphertext Binary Images
 
-A GitHub-Pages-friendly demonstrator for the supplied MRDHCBI + Hamming-syndrome prototype.
+**IT429 – Number Theory and Cryptography · Course Project**
+National Institute of Technology Karnataka (NITK), Surathkal
+Guided by [Jaidhar C D](https://infotech.nitk.ac.in/faculty/jaidhar-c-d)
 
-## What it does
+**Live demo:** https://jarvis0x07.github.io/MRDHCBI/
 
-1. User chooses **Sender** or **Receiver**.
-2. Both enter the same pairing key.
-3. The sender creates a temporary PeerJS/WebRTC room.
-4. The receiver joins using the same key.
-5. Sender selects:
-   - a binary/grayscale image
-   - a document to hide
-6. The browser converts the image to binary pixels (`>=128 -> 1`).
-7. The `(2,3)` visual-cryptography construction creates three shares.
-8. The proposed Hamming-syndrome method embeds **3 payload bits per source image pixel per share**.
-9. Only the marked shares are transferred; the document is not sent separately.
-10. Receiver extracts the payload, restores the ciphertext shares, reconstructs the binary image, and verifies the document with CRC-32.
-11. Both sides show a dashboard comparing the base MRDHCBI method and the proposed method.
-12. A corruption slider can flip a chosen percentage of marked-share bits before transfer.
+| Team member | Roll no. |
+|---|---|
+| Mubashir Afzal | 231AI021 |
+| Hasini Jaishetty | 231AI012 |
+| Kishora Shetty | 231AI014 |
 
-## Important result interpretation
+---
 
-For the current prototype:
+## 1. What this project is
 
-| Metric | Base MRDHCBI | Hamming syndrome |
-|---|---:|---:|
-| Payload / source pixel | 1 bit | 3 bits |
-| Stored bits / source pixel / share | 3 | 7 |
-| Payload density / stored coded bit | 1/3 | 3/7 |
-| Additional Hamming storage | — | 75% over the VC ciphertext |
-| Clean image recovery | Exact | Exact |
+We implemented a multi-party reversible data hiding (RDH) scheme for **ciphertext binary images** and ran it as a browser demo. A binary image is encrypted into three shares with (2,3) visual cryptography (VC). A data hider then embeds a secret document into the shares. A receiver can extract the document and restore the shares, and any two restored shares reconstruct the original image exactly.
 
-The browser demo reports actual recovery for the current transaction. Do not describe the proposed method as universally better: it trades additional coded storage for higher payload capacity.
+We compare two embedding methods:
 
-## GitHub Pages deployment
+- **Base MRDHCBI**: the baseline scheme, which embeds 1 payload bit per source pixel.
+- **Our Hamming-syndrome method**: a variant we designed that embeds 3 payload bits per source pixel by encoding each VC block with Hamming(7,4) and hiding data in the syndrome state.
 
-This is intentionally a static site.
+The project also includes an automated comparison against three published methods (Ren et al., Li et al., Zhang et al.) on six image categories, and a corruption experiment that flips random bits in the marked shares before transfer.
 
-### 1. Create a repository
+The whole demo runs in the browser. There is no backend, and the document is never uploaded anywhere.
 
-Example:
+---
 
-```text
-mrdhcbi-web
+## 2. How it works
+
+### Pipeline
+
+1. **Binarize.** The sender's image is thresholded: pixel ≥ 128 becomes 1, otherwise 0.
+2. **VC encryption.** The (2,3) visual cryptography construction (B0/B1 basis matrices with random column permutations) turns the image into three ciphertext shares.
+3. **Prepare the document.** The document is wrapped in a header and masked with a key-derived keystream (see section 5).
+4. **Embed.** Each share is embedded with the payload bits:
+   - *Base:* 1 bit per source pixel (3 stored bits per source pixel per share).
+   - *Hamming syndrome:* 3 bits per source pixel, using the syndrome of a Hamming(7,4) codeword as the carrier (7 stored bits per source pixel per share).
+5. **Transfer.** Only the three marked shares travel from sender to receiver. The document is not sent separately.
+6. **Extract and restore.** The receiver extracts the payload, restores the original ciphertext shares, reconstructs the binary image from two restored shares, and verifies the document with CRC-32.
+
+### Capacity and storage
+
+| Metric | Base MRDHCBI | Our Hamming syndrome |
+|---|---|---|
+| Payload per source pixel | 1 bit | 3 bits |
+| Stored bits per source pixel per share | 3 | 7 |
+| Payload per stored bit | 1/3 | 3/7 |
+| Storage overhead vs. VC ciphertext | none | +75% |
+| Capacity for a 128×128 image | 2 KB | 6 KB |
+| Clean-channel image recovery | exact | exact |
+
+Our method trades extra stored bits for three times the payload capacity. We do not claim it is better in every respect.
+
+---
+
+## 3. Using the demo
+
+You need two browser tabs or two devices.
+
+1. Open the site. Choose **Sender** in one tab and **Receiver** in the other.
+2. Enter the same **pairing key** in both and press *Create pairing*. The sender opens the room first, then the receiver joins.
+3. On the sender: choose a binary or grayscale image and the document to hide.
+4. Optionally set the **transmission corruption** slider (0–20%). This flips random bits in the marked shares before transfer.
+5. Press **Embed & send**.
+6. The receiver shows the recovered image, the CRC-32 result, the recovered document (downloadable, with a text preview for `.txt` files), and a dashboard comparing the two methods.
+7. **Analysis** on the landing page runs the five-method comparison locally. It needs no pairing, upload or connection.
+
+> The document plus its header must fit in the capacity of the chosen image (about 6 KB for 128×128 with our method, about 2 KB with the base method). If the document only fits our method, the base column shows N/A.
+
+---
+
+## 4. Results
+
+### 4.1 Corruption experiment
+
+Setup: 128×128 binary image, 46-byte document, one run per corruption level with fixed random seeds. "Corruption" is the percentage of marked-share bits flipped before transfer.
+
+| Corruption | Base image recovery | Hamming image recovery | Gain (points) |
+|---|---|---|---|
+| 0% | 100.00% | 100.00% | 0.00 |
+| 0.5% | 98.57% | 99.91% | 1.34 |
+| 1% | 97.16% | 99.77% | 2.61 |
+| 1.5% | 95.95% | 99.58% | 3.63 |
+| 2% | 94.72% | 99.30% | 4.58 |
+| 3% | 92.36% | 98.52% | 6.16 |
+| 5% | 87.85% | 96.03% | 8.18 |
+| 7.5% | 82.48% | 91.94% | 9.46 |
+| 10% | 77.75% | 87.43% | 9.68 |
+| 15% | 69.73% | 77.22% | 7.49 |
+| 20% | 63.64% | 68.01% | 4.37 |
+
+![Image recovery vs. corruption](base_vs_hamming_recovery.png)
+
+**Observations**
+
+- The Hamming method recovers more of the image at every non-zero corruption level.
+- The advantage peaks at roughly 7.5–10% corruption (about 9.5–9.7 points). It shrinks at 15–20%, because Hamming(7,4) corrects at most one error per 7-bit codeword and heavy noise puts several errors in the same codeword.
+- **Document recovery was 0% for both methods from 0.5% corruption upward** (the base method reached 2.17% at 0.5%). The payload is keystream-masked and CRC-checked, and the syndrome bits carry the payload, so a small number of flipped bits is enough to fail the CRC. Hamming's error correction helps restore the underlying ciphertext image, but it does not protect the embedded document.
+
+Part of the Hamming method's advantage comes from its 7/3 storage expansion, which gives it more redundancy than the base method.
+
+### 4.2 Comparison with published methods (Analysis tab)
+
+The Analysis tab evaluates five methods on six categories named after the paper's test images (Cartoon, CAD, Texture, Mask, Pattern, Document):
+
+- Ren et al. [12], Li et al. [13], Zhang et al. [14]: our reference implementations of the published mechanisms.
+- Base MRDHCBI and our Hamming method: the project's own implementations.
+
+Every number in the tables is measured by running the code in the browser. No published benchmark figure is copied in. It reports embedding rate (bpp), payload capacity, runtime, exact recovery, and embedding-rate stability across categories.
+
+---
+
+## 5. Document format and masking
+
+Before embedding, the browser builds this byte stream:
+
 ```
-
-Copy the contents of this folder into the repository root.
-
-### 2. Push
-
-```bash
-git init
-git add .
-git commit -m "Add MRDHCBI web demonstrator"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/mrdhcbi-web.git
-git push -u origin main
-```
-
-### 3. Enable Pages
-
-In GitHub:
-
-```text
-Repository
-→ Settings
-→ Pages
-→ Build and deployment
-→ Source: Deploy from a branch
-→ Branch: main
-→ Folder: / (root)
-→ Save
-```
-
-GitHub will provide the Pages URL.
-
-No Node server is required for the website.
-
-## Why a server is still involved
-
-GitHub Pages only serves static files. It does not act as a live signaling server.
-
-This demo therefore uses:
-
-- **GitHub Pages** — hosts HTML/CSS/JS
-- **PeerJS cloud signaling** — helps the two browsers find each other
-- **WebRTC DataChannel** — transfers the marked shares directly between browsers
-
-The transferred file data is not uploaded to GitHub Pages.
-
-For a production/research deployment, replace the public PeerJS signaling dependency with a signaling server that you control.
-
-## Project structure
-
-```text
-mrdhcbi-web/
-├── index.html
-├── styles.css
-├── README.md
-└── js/
-    ├── algorithm.js
-    └── app.js
-```
-
-## Browser algorithm
-
-The implementation in `js/algorithm.js` mirrors the important logic in the supplied Python prototype:
-
-- B0/B1 `(2,3)` visual cryptography basis matrices
-- random column permutations
-- base MRDHCBI embedding
-- Hamming(7,4)
-- syndrome calculation
-- 3-bit syndrome-state embedding
-- syndrome extraction and restoration
-- VC reconstruction
-- SHA-256 counter-mode XOR stream for the document payload
-- CRC-32 integrity verification
-
-## Document format
-
-Before embedding, the browser creates:
-
-```text
-[name length: 2 bytes]
-[mime length: 2 bytes]
-[file size: 4 bytes]
-[CRC-32: 4 bytes]
+[name length : 2 bytes]
+[mime length : 2 bytes]
+[file size   : 4 bytes]
+[CRC-32      : 4 bytes]
 [file name]
 [MIME type]
 [file bytes]
 ```
 
-That complete byte stream is XORed with a key-derived SHA-256 keystream and then converted to payload bits.
+The whole stream is XORed with a keystream generated from the pairing key using SHA-256 in counter mode, then converted to payload bits. This is a reversible demonstration format. It is not authenticated encryption and should not be used to protect real data.
 
-This is a reversible demonstration format, not a replacement for authenticated modern encryption.
+---
 
-## Corruption experiment
+## 6. Project structure
 
-The corruption slider flips random bits in the marked shares before the WebRTC transfer.
+```
+.
+├── index.html          page markup, loads PeerJS and Chart.js from CDNs
+├── styles.css          light and dark themes, layout
+├── js/
+│   ├── algorithm.js    VC, base embedding, Hamming(7,4) syndrome embedding,
+│   │                   extraction/restoration, payload masking, CRC-32,
+│   │                   reference implementations of Ren/Li/Zhang
+│   └── app-v6.js       UI, PeerJS pairing, transaction flow, dashboard, analysis
+├── docs/
+│   └── base_vs_hamming_recovery.png
+└── README.md
+```
 
-The dashboard reports:
+External dependencies (loaded from CDNs):
 
-- image pixel recovery
-- document recovery/integrity
-- CRC status
-- corruption percentage
-- base/proposed capacity
-- stored-bit expansion
+- PeerJS 1.5.4, for WebRTC signalling and data channels.
+- Chart.js 4.4.7, for the charts.
 
-The current Hamming-syndrome construction can use Hamming's correction capability to help restore the underlying ciphertext when errors are within its correction model, but the syndrome itself is also carrying payload. Therefore arbitrary corruption can still damage the document payload. The website deliberately reports the measured result instead of claiming 100% recovery under arbitrary corruption.
+If you change `js/app-v6.js` or `js/algorithm.js`, bump the `?v=` query string on the matching `<script>` tags in `index.html`. Otherwise browsers may keep serving a cached copy.
 
-## Recommended research workflow
+---
 
-For your presentation/demo:
+## 7. Running it
 
-1. Run with `0%` corruption.
-2. Show exact document recovery and exact image recovery.
-3. Increase corruption to `1%`, `2%`, `5%`, `10%`.
-4. Compare image recovery and document recovery.
-5. Explain the capacity/storage tradeoff.
-6. Export screenshots of the dashboard for your results section.
+### GitHub Pages
 
-## Current scope
+The site is static. Push to `main` and enable *Settings → Pages → Deploy from a branch → main / (root)*.
 
-The prototype is designed as a research demonstrator rather than a production file-transfer system. In particular:
+### Locally
 
-- the pairing key is used for room identification and payload masking;
-- the public PeerJS broker is external infrastructure;
-- the browser stores data only for the active transaction;
-- no database is required;
-- no user account is required;
-- no original image is sent separately.
+```bash
+git clone https://github.com/Jarvis0x07/MRDHCBI.git
+cd MRDHCBI
+python3 -m http.server 8000
+# open http://localhost:8000
+```
 
+Pairing needs internet access, because the two browsers find each other through the public PeerJS signalling server. The shares themselves go directly between browsers over a WebRTC data channel.
+
+---
+
+## 8. Limitations
+
+- **Document survival under noise:** the document fails CRC-32 at corruption of 0.5% or more (see 4.1). Both methods are meant for reversible hiding on a clean channel. They are not noise-robust document carriers.
+- **Receiver image recovery:** the receiver cannot see the original image, so its "image recovery" figure is the one the sender computed and put in the manifest. The recovered image itself is reconstructed on the receiver.
+- **Single runs:** each corruption level was run once with fixed seeds. We did not average over seeds.
+- **Replica test images:** the exact BMP files named in the paper were not available, so the six Analysis inputs are deterministic binary replicas of each category. Absolute numbers will differ from the paper.
+- **Reference implementations:** Ren, Li and Zhang are our own implementations of the published mechanisms with fixed parameters. They are not the authors' code. Runtimes come from the browser, not the paper's MATLAB setup.
+- **Pairing key:** it identifies the room and seeds the payload mask. It is not a secure key exchange, and the public PeerJS broker is third-party infrastructure. For anything beyond a demo, run your own signalling server and use authenticated encryption.
+- **Scope:** this is a course-project demonstrator, not a production file-transfer tool.
+
+---
+
+## 9. References
+
+1. Base MRDHCBI paper: *[add full citation]*
+2. Ren et al., [12] in the base paper: *[add full citation]*
+3. Li et al., [13] in the base paper: *[add full citation]*
+4. Zhang et al., [14] in the base paper: *[add full citation]*
+5. Hamming, R. W., "Error detecting and error correcting codes," *Bell System Technical Journal*, 1950.
+6. Naor, M. and Shamir, A., "Visual cryptography," *EUROCRYPT '94*, 1995.
+
+---
+
+© 2026 MRDHCBI Project Team · IT429, NITK Surathkal
