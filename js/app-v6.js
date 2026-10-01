@@ -1,8 +1,3 @@
-import {
-  loadBinaryImage,binaryToCanvas,canvasToBlob,vcEncrypt,baseEmbed,baseExtract,restoreBaseShare,
-  syndromeEmbed,syndromeExtractRestore,vcRecover,corruptBits,makePayload,parsePayload,
-  fitPayloadToBits,bitsFromBytes,bytesFromBits,sharePngBlob,benchmarkRen,benchmarkLi,benchmarkZhang
-} from './algorithm.js';
 
 let role=null, peer=null, conn=null, pairingKey='', imageState=null, documentFile=null, charts=[], analysisCharts=[];
 const $=id=>document.getElementById(id);
