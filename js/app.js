@@ -4,7 +4,7 @@ import {
   fitPayloadToBits,bitsFromBytes,bytesFromBits,sharePngBlob
 } from './algorithm.js';
 
-let role=null, peer=null, conn=null, pairingKey='', imageState=null, documentFile=null, charts=[];
+let role=null, peer=null, conn=null, pairingKey='', imageState=null, documentFile=null, charts=[], analysisCharts=[];
 const $=id=>document.getElementById(id);
 const show=(id,on=true)=>$(id).classList.toggle('hidden',!on);
 const status=(s,good=false)=>{ $('connectionStatus').textContent=(good?'● ':'● ')+s; };
@@ -23,8 +23,19 @@ function downloadBlob(blob,name){const u=URL.createObjectURL(blob),a=document.cr
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 document.querySelectorAll('.role-card').forEach(btn=>btn.onclick=()=>{
-  role=btn.dataset.role; show('landing',false); show('pairing'); $('pairState').textContent=`Role: ${role}`;
+  role=btn.dataset.role;
+  if(role==='analysis'){
+    show('landing',false);
+    show('pairing',false); show('senderPanel',false); show('receiverPanel',false); show('dashboard',false);
+    show('analysisPanel',true);
+    renderAnalysis();
+    return;
+  }
+  show('landing',false); show('pairing'); $('pairState').textContent=`Role: ${role}`;
 });
+$('analysisBackBtn').onclick=()=>{ show('analysisPanel',false); show('landing',true); role=null; };
+$('analysisMetric').onchange=renderAnalysis;
+$('analysisImage').onchange=renderAnalysis;
 $('backBtn').onclick=()=>{if(peer)peer.destroy();peer=null;conn=null;show('pairing',false);show('landing');status('Offline')};
 $('corruption').oninput=e=>$('corruptionValue').textContent=e.target.value+'%';
 $('imageInput').onchange=async e=>{
@@ -268,6 +279,85 @@ function renderDashboard(meta,who){
   charts.push(new Chart($('recoveryChart'),{type:'bar',data:{labels:['Base','Proposed'],datasets:[{label:'Image recovery %',data:[b?.imageRecoveryPct??0,p.imageRecoveryPct??0]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:100}}}}));
   charts.push(new Chart($('storageChart'),{type:'bar',data:{labels:['Base','Proposed'],datasets:[{label:'Stored bits / source pixel',data:[3,7]}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
   $('dashboard').scrollIntoView({behavior:'smooth'});
+}
+
+
+const PAPER_IMAGES=['Cartoon','CAD','Texture','Mask','Pattern','Document'];
+const PAPER_FILES={Cartoon:'183.bmp',CAD:'487.bmp',Texture:'760.bmp',Mask:'1001.bmp',Pattern:'1704.bmp',Document:'3060.bmp'};
+const METHODS=['Ren et al. [12]','Li et al. [13]','Zhang et al. [14]','Paper presented'];
+const PAPER_EMBED={
+  Cartoon:[0.42,0.43,0.39,0.50], CAD:[0.24,0.25,0.22,0.50], Texture:[0.17,0.19,0.15,0.50],
+  Mask:[0.80,0.83,0.85,0.50], Pattern:[0.30,0.31,0.24,0.50], Document:[0.46,0.46,0.41,0.50]
+};
+const PAPER_RUNTIME={
+  Cartoon:[71.1064,72.1823,54.8561,60.9352], CAD:[73.7246,75.8646,59.7081,61.1015],
+  Texture:[79.0976,79.7218,62.9826,60.3014], Mask:[92.4886,95.6055,66.3101,59.6784],
+  Pattern:[71.3982,73.0493,59.5149,60.6579], Document:[71.1297,71.1876,55.3301,60.8692]
+};
+const FUNCTIONAL=[
+  ['Embedding space','Correlation','Correlation','Correlation','Encryption'],
+  ['Preprocessing','Yes','Yes','Yes','No'],
+  ['Encryption','Stream cipher','Stream cipher','Stream cipher','Visual cryptography'],
+  ['Data hider','Single','Single','Single','Multiple']
+];
+function methodLabels(){return ['Ren [12]','Li [13]','Zhang [14]','Paper'];}
+function makeAnalysisThumb(type){
+  const c=document.createElement('canvas'); c.width=256;c.height=180; const x=c.getContext('2d');
+  x.fillStyle='#080d16';x.fillRect(0,0,256,180);x.fillStyle='#f1f5f9';
+  if(type==='Cartoon'){
+    x.beginPath();x.arc(128,88,62,0,Math.PI*2);x.fill();x.fillStyle='#080d16';x.fillRect(91,68,18,18);x.fillRect(147,68,18,18);x.fillRect(110,119,36,6);
+  } else if(type==='CAD'){
+    x.strokeStyle='#f1f5f9';x.lineWidth=5;x.strokeRect(42,30,172,120);x.beginPath();x.moveTo(42,120);x.lineTo(100,60);x.lineTo(145,125);x.lineTo(190,55);x.stroke();
+  } else if(type==='Texture'){
+    for(let yy=0;yy<180;yy+=8)for(let xx=0;xx<256;xx+=8)if(((xx*17+yy*31)%23)<11)x.fillRect(xx,yy,5,5);
+  } else if(type==='Mask'){
+    x.beginPath();x.arc(128,88,70,0,Math.PI*2);x.fill();x.fillStyle='#080d16';x.beginPath();x.ellipse(102,84,16,9,0,0,Math.PI*2);x.ellipse(154,84,16,9,0,0,Math.PI*2);x.fill();x.fillRect(110,115,36,7);
+  } else if(type==='Pattern'){
+    for(let y=20;y<170;y+=30)for(let xx=20;xx<250;xx+=30){x.fillRect(xx,y,16,16);x.clearRect(xx+4,y+4,8,8)}
+  } else {
+    x.font='bold 15px monospace';let lines=['DOCUMENT','REVERSIBLE','DATA HIDING','BINARY IMAGE'];lines.forEach((t,i)=>x.fillText(t,34,45+i*32));
+  }
+  return c.toDataURL();
+}
+function bestText(values,lower=false){
+  const idx=lower?values.indexOf(Math.min(...values)):values.indexOf(Math.max(...values));
+  return `${methodLabels()[idx]} • ${values[idx].toFixed(2)}`;
+}
+function renderAnalysis(){
+  const metric=$('analysisMetric').value, selected=$('analysisImage').value;
+  const images=selected==='all'?PAPER_IMAGES:[selected];
+  $('analysisImages').innerHTML=images.map(t=>`<div class="analysis-image-card"><img src="${makeAnalysisThumb(t)}" alt="${t} representative binary preview"><b>${t}</b><span>${PAPER_FILES[t]} • 256×256 paper test image</span></div>`).join('');
+  const embedAll=PAPER_IMAGES.flatMap(t=>PAPER_EMBED[t]);
+  const runtimeAll=PAPER_IMAGES.flatMap(t=>PAPER_RUNTIME[t]);
+  const paperAvgEmbed=embedAll.reduce((a,b)=>a+b,0)/embedAll.length;
+  const paperAvgRuntime=runtimeAll.reduce((a,b)=>a+b,0)/runtimeAll.length;
+  const proposedRuntime=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][3]);
+  const runtimeRange=Math.max(...proposedRuntime)-Math.min(...proposedRuntime);
+  const embedRange=0.50-0.50;
+  $('analysisSummary').innerHTML=`
+    <div class="metric"><span>Paper test images</span><b>6</b><small>all six categories</small></div>
+    <div class="metric"><span>Paper embedding rate</span><b>${paperAvgEmbed.toFixed(3)} bpp</b><small>mean of reported methods</small></div>
+    <div class="metric"><span>Paper runtime</span><b>${paperAvgRuntime.toFixed(2)} ms</b><small>mean across all methods/images</small></div>
+    <div class="metric"><span>Our prototype</span><b>3 bpp</b><small>Hamming-syndrome payload / source pixel</small></div>`;
+
+  const labels=images;
+  const chartData=images.map(t=>metric==='runtime'?PAPER_RUNTIME[t]:PAPER_EMBED[t]);
+  const isRuntime=metric==='runtime';
+  $('analysisChartTitle').textContent=isRuntime?'Encryption runtime reported in the paper (lower is better)':'Embedding rate reported in the paper (higher is better)';
+  analysisCharts.forEach(c=>c.destroy());analysisCharts=[];
+  analysisCharts.push(new Chart($('analysisMainChart'),{type:'bar',data:{labels,datasets:METHODS.map((m,i)=>({label:m,data:chartData.map(v=>v[i])}))},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,title:{display:true,text:isRuntime?'milliseconds':'bits per pixel'}}}}}));
+  analysisCharts.push(new Chart($('analysisRuntimeChart'),{type:'line',data:{labels:PAPER_IMAGES,datasets:METHODS.map((m,i)=>({label:m,data:PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][i]),tension:.2}))},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}}));
+  const stability=PAPER_IMAGES.map(t=>PAPER_EMBED[t]);
+  const ranges=METHODS.map((m,i)=>Math.max(...stability.map(v=>v[i]))-Math.min(...stability.map(v=>v[i])));
+  analysisCharts.push(new Chart($('analysisStabilityChart'),{type:'bar',data:{labels:methodLabels(),datasets:[{label:'Embedding-rate range across six images (lower = more stable)',data:ranges}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}}));
+  analysisCharts.push(new Chart($('analysisPrototypeChart'),{type:'bar',data:{labels:['Base MRDHCBI','Our Hamming syndrome'],datasets:[{label:'Payload bpp',data:[1,3]},{label:'Stored bits / source pixel / share',data:[3,7]}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}}));
+
+  $('analysisTable').innerHTML=`<table class="details"><tr><th>Image</th><th>Ren [12] bpp</th><th>Li [13] bpp</th><th>Zhang [14] bpp</th><th>Paper</th><th>Best reported bpp</th></tr>${PAPER_IMAGES.map(t=>{const v=PAPER_EMBED[t];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}<td><b>${Math.max(...v).toFixed(2)}</b> • ${methodLabels()[v.indexOf(Math.max(...v))]}</td></tr>`}).join('')}</table><br><table class="details"><tr><th>Image</th><th>Ren ms</th><th>Li ms</th><th>Zhang ms</th><th>Paper ms</th><th>Lowest runtime</th></tr>${PAPER_IMAGES.map(t=>{const v=PAPER_RUNTIME[t];return `<tr><td>${t}</td>${v.map(x=>`<td>${x.toFixed(4)}</td>`).join('')}<td><b>${Math.min(...v).toFixed(4)}</b> • ${methodLabels()[v.indexOf(Math.min(...v))]}</td></tr>`}).join('')}</table>`;
+  $('functionalTable').innerHTML=`<table class="details"><tr><th>Function</th><th>Ren [12]</th><th>Li [13]</th><th>Zhang [14]</th><th>Paper presented</th></tr>${FUNCTIONAL.map(r=>`<tr>${r.map((x,j)=>j===0?`<th>${x}</th>`:`<td>${x}</td>`).join('')}</tr>`).join('')}</table>`;
+  const runtimeRanges=METHODS.map((m,i)=>{const a=PAPER_IMAGES.map(t=>PAPER_RUNTIME[t][i]);return Math.max(...a)-Math.min(...a)});
+  const runtimeMeans=METHODS.map((m,i)=>PAPER_IMAGES.reduce((a,t)=>a+PAPER_RUNTIME[t][i],0)/PAPER_IMAGES.length);
+  $('derivedTable').innerHTML=`<table class="details"><tr><th>Derived metric</th><th>Ren [12]</th><th>Li [13]</th><th>Zhang [14]</th><th>Paper presented</th></tr><tr><td>Mean embedding rate (bpp)</td>${METHODS.map((m,i)=>`<td>${(PAPER_IMAGES.reduce((a,t)=>a+PAPER_EMBED[t][i],0)/6).toFixed(3)}</td>`).join('')}</tr><tr><td>Embedding-rate range (lower = more stable)</td>${ranges.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}</tr><tr><td>Mean encryption runtime (ms)</td>${runtimeMeans.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}</tr><tr><td>Runtime range (lower = more stable)</td>${runtimeRanges.map(x=>`<td>${x.toFixed(3)}</td>`).join('')}</tr></table>
+      <p class="hint analysis-footnote">Paper-derived values are transcribed from Fig. 3 and Table I. The representative thumbnails are category illustrations; the exact six BMP files named by the paper are not included in the current project ZIP. No unreported experimental result is presented as a paper result.</p>`;
 }
 
 $('newTxBtn').onclick=()=>location.reload();
