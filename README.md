@@ -49,7 +49,7 @@ The whole demo runs in the browser. There is no backend, and the document is nev
 | Payload per source pixel | 1 bit | 3 bits |
 | Stored bits per source pixel per share | 3 | 7 |
 | Payload per stored bit | 1/3 | 3/7 |
-| Storage overhead vs. VC ciphertext | none | +75% |
+| Stored bits vs. VC ciphertext | 3 (none added) | 7 (+133%, i.e. 7/3) |
 | Capacity for a 128×128 image | 2 KB | 6 KB |
 | Clean-channel image recovery | exact | exact |
 
@@ -77,7 +77,7 @@ You need two browser tabs or two devices.
 
 ### 4.1 Corruption experiment
 
-Setup: 128×128 binary image, 46-byte document, one run per corruption level with fixed random seeds. "Corruption" is the percentage of marked-share bits flipped before transfer.
+Setup: 128×128 binary image, 46-byte document (under 1% of our method's 6 KB capacity), one run per corruption level with fixed random seeds. "Corruption" is the percentage of marked-share bits flipped before transfer.
 
 | Corruption | Base image recovery | Hamming image recovery | Gain (points) |
 |---|---|---|---|
@@ -93,15 +93,15 @@ Setup: 128×128 binary image, 46-byte document, one run per corruption level wit
 | 15% | 69.73% | 77.22% | 7.49 |
 | 20% | 63.64% | 68.01% | 4.37 |
 
-![Image recovery vs. corruption](base_vs_hamming_recovery.png)
+![Image recovery vs. corruption](docs/base_vs_hamming_recovery.png)
 
 **Observations**
 
-- The Hamming method recovers more of the image at every non-zero corruption level.
-- The advantage peaks at roughly 7.5–10% corruption (about 9.5–9.7 points). It shrinks at 15–20%, because Hamming(7,4) corrects at most one error per 7-bit codeword and heavy noise puts several errors in the same codeword.
-- **Document recovery was 0% for both methods from 0.5% corruption upward** (the base method reached 2.17% at 0.5%). The payload is keystream-masked and CRC-checked, and the syndrome bits carry the payload, so a small number of flipped bits is enough to fail the CRC. Hamming's error correction helps restore the underlying ciphertext image, but it does not protect the embedded document.
-
-Part of the Hamming method's advantage comes from its 7/3 storage expansion, which gives it more redundancy than the base method.
+- With this small document, the Hamming method recovers more of the image than the base method at every non-zero corruption level.
+- The reason is how the syndrome is used. Because the document fills under 1% of the capacity, almost every embedded syndrome symbol is 0. A flipped bit in a 7-bit block then produces a non-zero syndrome, which the receiver reads as an error position and flips back, so Hamming(7,4) acts as a single-error-correcting code. The base method has no such correction: a flip in either of the last two subpixels of a block makes the receiver also flip the first subpixel.
+- The gain peaks at roughly 7.5–10% corruption (about 9.5–9.7 points) and shrinks at 15–20%, because blocks with two or more errors can no longer be corrected.
+- **The advantage depends on how full the payload is.** When the syndrome carries payload bits, a channel error cannot be told apart from a payload symbol, so the correction is lost. We measured only the 46-byte case. A document that fills most of the capacity should show a smaller gain, or a loss against the base method. This has not yet been measured on the site.
+- **Document recovery was 0% for both methods from 0.5% corruption upward** (the base method reached 2.17% at 0.5%). The document sits in the first ~800 payload bits, and a single flipped bit there is enough to corrupt the header (so parsing fails or the body is misaligned) or the CRC. The dashboard reports 0% whenever parsing fails, even if most bytes arrived intact.
 
 ### 4.2 Comparison with published methods (Analysis tab)
 
@@ -178,7 +178,9 @@ Pairing needs internet access, because the two browsers find each other through 
 
 ## 8. Limitations
 
-- **Document survival under noise:** the document fails CRC-32 at corruption of 0.5% or more (see 4.1). Both methods are meant for reversible hiding on a clean channel. They are not noise-robust document carriers.
+- **Document survival under noise:** the document did not survive any corruption of 0.5% or more (see 4.1). Both methods are meant for reversible hiding on a clean channel. They are not noise-robust document carriers.
+- **Payload fill:** the image-recovery advantage of the Hamming method was measured with a document using under 1% of the capacity. It is expected to shrink or reverse as the payload fills the syndrome space (see 4.1).
+- **One payload, three shares:** in the demo the same payload bits are embedded into all three shares, and the receiver extracts the document from the first share only. It is not independent embedding by three different data hiders.
 - **Receiver image recovery:** the receiver cannot see the original image, so its "image recovery" figure is the one the sender computed and put in the manifest. The recovered image itself is reconstructed on the receiver.
 - **Single runs:** each corruption level was run once with fixed seeds. We did not average over seeds.
 - **Replica test images:** the exact BMP files named in the paper were not available, so the six Analysis inputs are deterministic binary replicas of each category. Absolute numbers will differ from the paper.
@@ -187,15 +189,6 @@ Pairing needs internet access, because the two browsers find each other through 
 - **Scope:** this is a course-project demonstrator, not a production file-transfer tool.
 
 ---
-
-## 9. References
-
-1. Base MRDHCBI paper: *[add full citation]*
-2. Ren et al., [12] in the base paper: *[add full citation]*
-3. Li et al., [13] in the base paper: *[add full citation]*
-4. Zhang et al., [14] in the base paper: *[add full citation]*
-5. Hamming, R. W., "Error detecting and error correcting codes," *Bell System Technical Journal*, 1950.
-6. Naor, M. and Shamir, A., "Visual cryptography," *EUROCRYPT '94*, 1995.
 
 ---
 
