@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="MRDHCBI reversible data hiding demonstration">
-  <title>IT429 • Number Theory & Cryptography • MRDHCBI</title>
+  <title>IT429 — Number Theory and Cryptography | Course Project</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -12,8 +12,8 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">M</div>
-      <div><b>MRDHCBI</b><span>Reversible Data Hiding Lab</span></div>
+      <div class="brand-mark">IT</div>
+      <div><b>IT429</b><span>Number Theory & Cryptography</span></div>
     </div>
     <div class="top-actions"><button class="theme-toggle" id="themeToggle">☼ Light mode</button><div class="status-pill" id="connectionStatus">● Offline</div></div>
   </header>
@@ -21,10 +21,10 @@
   <main class="container">
     <section id="landing" class="hero">
       <div>
-        <p class="eyebrow">IT429 • NUMBER THEORY AND CRYPTOGRAPHY</p>
+        <p class="course-kicker">IT429 · NUMBER THEORY AND CRYPTOGRAPHY · COURSE PROJECT</p>
         <h1>Multi-Party Reversible Data Hiding in Ciphertext Binary Images</h1>
-        <p class="lead">A course project exploring visual cryptography, reversible data hiding, and our Hamming-code based embedding approach.</p>
-        <div class="project-meta"><span>Guided by <a href="https://infotech.nitk.ac.in/faculty/jaidhar-c-d" target="_blank" rel="noopener">Jaidhar C D</a></span><span>NITK • IT429</span></div>
+        <p class="lead">An experimental implementation of multi-party reversible data hiding, visual cryptography, and our Hamming-code based embedding method.</p>
+        <div class="project-meta"><span>Guided by <a class="faculty-link" href="https://infotech.nitk.ac.in/faculty/jaidhar-c-d" target="_blank" rel="noopener">Jaidhar C D ↗</a></span><span>National Institute of Technology Karnataka</span></div>
       </div>
       <div class="role-grid">
         <button class="role-card" data-role="sender">
@@ -43,10 +43,11 @@
           <small>Compare the paper, base MRDHCBI, and our Hamming-syndrome approach.</small>
         </button>
       </div>
+      <div class="team-heading"><span>PROJECT TEAM</span><i></i></div>
       <div class="team-strip">
-        <div><b>Mubashir Afzal</b><span>231AI021</span><a href="https://www.linkedin.com/in/mubashir-afzal/" target="_blank" rel="noopener">LinkedIn ↗</a></div>
-        <div><b>Hasini Jaishetty</b><span>231AI012</span><a href="https://www.linkedin.com/in/hasinijaishetty/" target="_blank" rel="noopener">LinkedIn ↗</a></div>
-        <div><b>Kishora Shetty</b><span>231AI014</span><a href="https://www.linkedin.com/in/kishora-shetty-733469323/" target="_blank" rel="noopener">LinkedIn ↗</a></div>
+        <a class="member-card" href="https://www.linkedin.com/in/mubashir-afzal/" target="_blank" rel="noopener"><span class="member-no">01</span><span class="member-info"><b>Mubashir Afzal</b><small>231AI021</small></span><span class="member-linkedin">in ↗</span></a>
+        <a class="member-card" href="https://www.linkedin.com/in/hasinijaishetty/" target="_blank" rel="noopener"><span class="member-no">02</span><span class="member-info"><b>Hasini Jaishetty</b><small>231AI012</small></span><span class="member-linkedin">in ↗</span></a>
+        <a class="member-card" href="https://www.linkedin.com/in/kishora-shetty-733469323/" target="_blank" rel="noopener"><span class="member-no">03</span><span class="member-info"><b>Kishora Shetty</b><small>231AI014</small></span><span class="member-linkedin">in ↗</span></a>
       </div>
     </section>
 
@@ -135,7 +136,7 @@
       </div>
       <div class="analysis-note">
         <b>One-click evaluation.</b> Clicking Analysis automatically evaluates the same six paper categories — Cartoon, CAD, Texture, Mask, Pattern and Document — with the paper's three comparison methods, the base MRDHCBI method, and <b>our Hamming-code method</b>. No pairing key, sender/receiver connection, or image upload is required.
-        Literature values for Ren et al. [12], Li et al. [13], Zhang et al. [14] and the base paper are taken from the paper. Our Hamming pipeline is executed in-browser on deterministic binary replicas of those six categories because the exact BMP files named by the paper are not present in the supplied project.
+        All five methods are executed locally. Ren [12], Li [13], and Zhang [14] are reference implementations of the published mechanisms; Base MRDHCBI and our Hamming method use the project's executable implementations. No published numerical result is copied into the measured tables. The exact BMP files named by the paper are not present, so the six category inputs are deterministic binary replicas.
       </div>
 
       <div id="analysisSummary" class="metric-grid"></div>
@@ -143,7 +144,7 @@
 
       <div class="panel analysis-table-panel">
         <h3>Embedding experiment — all five methods</h3>
-        <p class="hint">The same category and payload-density comparison is shown for every method. The paper's reported methods are literature results; our Hamming value is 3 bpp by implementation.</p>
+        <p class="hint">Every value is generated by running the corresponding implementation on the same six category inputs. No paper benchmark number is inserted into these graphs.</p>
         <div class="chart-grid">
           <div class="chart-card wide-chart"><h3 id="analysisChartTitle">Embedding rate — all methods on the same six paper categories</h3><canvas id="analysisMainChart"></canvas></div>
           <div class="chart-card"><h3>Encryption / processing runtime</h3><canvas id="analysisRuntimeChart"></canvas></div>
@@ -167,19 +168,10 @@
     </section>
   </main>
 
-    <section class="credits">
-    <p class="eyebrow">DEVELOPED BY</p>
-    <div class="credit-list">
-      <div class="credit"><b>Mubashir Afzal</b></div>
-      <div class="credit"><b>Kishora Shetty</b></div>
-      <div class="credit"><b>Hasini Jaishetty</b></div>
-    </div>
-  </section> 
-
-  <footer>
-    <span>MRDHCBI research demonstrator</span>
-    <span>GitHub Pages + WebRTC</span>
+    <footer>
+    <div><b>IT429 · Number Theory and Cryptography</b><span>Course Project · NITK Surathkal</span></div>
+    <div><span>Guided by Jaidhar C D</span><span>© 2026 MRDHCBI Project Team</span></div>
   </footer>
-  <script type="module" src="js/app-v5.js?v=20261001-v5"></script>
+  <script type="module" src="js/app-v6.js?v=20261001-v6"></script>
 </body>
 </html>
